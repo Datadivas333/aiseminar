@@ -1,0 +1,61 @@
+import random
+
+def calculate_service_time_and_profit(j, k):
+    # Placeholder function to calculate service time (esj,k) and profit (epj,k)
+    # Replace these with actual calculations based on Eq.(2) and Eq.(4)
+    esj_k = random.uniform(0, 10)  # Simulated service time
+    epj_k = random.uniform(10, 20)  # Simulated profit
+    return esj_k, epj_k
+
+def initial_feasible_solution(J, K, s_max, m):
+    # Initialize the assignment matrix X (all elements set to 0)
+    X = {j: {k: 0 for k in K} for j in J}
+
+    # Initialize the utility set F
+    F = []
+
+    # Calculate utility for each order-worker pair and store in F
+    for j in J:
+        for k in K:
+            esj_k, epj_k = calculate_service_time_and_profit(j, k)
+            utility = epj_k - esj_k
+            F.append((j, k, utility))
+
+    # Sort F in descending order of utility values
+    F.sort(key=lambda x: x[2], reverse=True)
+
+    # Randomly select an initial index
+    a = random.randint(0, len(F) - 1)
+    c = 0
+
+    # Iterate through F to assign orders to workers
+    while c <= len(F):
+        j, k = F[a][:2]
+
+        # Assume esj_k, ecj_k are recalculated for this assignment
+        esj_k, _ = calculate_service_time_and_profit(j, k)
+        ecj_k = random.uniform(0, m[k])  # Simulated delivery cost
+
+        # Check if the assignment meets the constraints
+        if esj_k <= s_max and ecj_k < m[k]:
+            X[j][k] = 1
+            c += 1
+
+        # Move to the next index (cyclic)
+        a = (a + 1) % len(F)
+
+    return X
+
+# Example usage
+J = [1, 2, 3]  # Set of orders
+K = ['worker1', 'worker2']  # Set of workers
+
+s_max = 15  # Maximum allowable service time
+m = {'worker1': 25, 'worker2': 20}  # Payment for each worker
+
+X = initial_feasible_solution(J, K, s_max, m)
+
+print("Initial Feasible Solution (Assignment Matrix X):")
+for j in J:
+    for k in K:
+        print(f"Order {j} assigned to {k}: {X[j][k]}")
