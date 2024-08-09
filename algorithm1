@@ -2,7 +2,7 @@ def calculate_service_time_and_cost(Jk, distances, current_location, pickup_loca
     # Initialize variables
     esj_k = {j: 0 for j in Jk}  # Service time for each order j in Jk
     ecj_k = {j: 0 for j in Jk}  # Delivery cost for each order j in Jk
-##########
+
     # Construct total workload set
     J0_k = set()  # Set of undelivered orders (previous workload)
     Jk = Jk.union(J0_k)  # Total workload set (including current and previous workload)
