@@ -1,25 +1,32 @@
 import random
 
-def calculate_service_time_and_profit(j, k):
-    # Placeholder function to calculate service time (esj,k) and profit (epj,k)
-    # Replace these with actual calculations based on Eq.(2) and Eq.(4)
-    esj_k = random.uniform(0, 10)  # Simulated service time
-    epj_k = random.uniform(10, 20)  # Simulated profit
-    return esj_k, epj_k
+def initial_feasible_solution(J, K, s_max, q_k, service_times, costs, estimated_service_times, estimated_profits):
+    """
+    Generate an initial feasible solution for assigning orders to workers.
+    
+    :param J: List of orders.
+    :param K: List of workers.
+    :param s_max: Maximum allowable service time for any worker.
+    :param q_k: Dictionary of workers' maximum carrying capacity.
+    :param service_times: Dictionary of actual service times calculated in Algorithm 1.
+    :param costs: Dictionary of delivery costs calculated in Algorithm 1.
+    :param estimated_service_times: Dictionary of estimated service times.
+    :param estimated_profits: Dictionary of estimated profits.
+    :return: A feasible solution X represented as a dictionary.
+    """
 
-def initial_feasible_solution(J, K, s_max, m):
     # Initialize the assignment matrix X (all elements set to 0)
     X = {j: {k: 0 for k in K} for j in J}
-
+    
     # Initialize the utility set F
     F = []
 
     # Calculate utility for each order-worker pair and store in F
     for j in J:
         for k in K:
-            esj_k, epj_k = calculate_service_time_and_profit(j, k)
-            utility = epj_k - esj_k
-            F.append((j, k, utility))
+            if service_times[(j, k)] <= s_max:
+                utility = estimated_profits[(j, k)] - service_times[(j, k)]
+                F.append((j, k, utility))
 
     # Sort F in descending order of utility values
     F.sort(key=lambda x: x[2], reverse=True)
@@ -32,12 +39,8 @@ def initial_feasible_solution(J, K, s_max, m):
     while c <= len(F):
         j, k = F[a][:2]
 
-        # Assume esj_k, ecj_k are recalculated for this assignment
-        esj_k, _ = calculate_service_time_and_profit(j, k)
-        ecj_k = random.uniform(0, m[k])  # Simulated delivery cost
-
-        # Check if the assignment meets the constraints
-        if esj_k <= s_max and ecj_k < m[k]:
+        # Ensure that adding this order doesn't exceed the worker's capacity
+        if service_times[(j, k)] <= s_max and X[j][k] == 0 and q_k[k] >= sum(X[j][k] * estimated_service_times[(j, k)] for j in J):
             X[j][k] = 1
             c += 1
 
@@ -51,11 +54,35 @@ J = [1, 2, 3]  # Set of orders
 K = ['worker1', 'worker2']  # Set of workers
 
 s_max = 15  # Maximum allowable service time
-m = {'worker1': 25, 'worker2': 20}  # Payment for each worker
+q_k = {'worker1': 50, 'worker2': 60}  # Maximum carrying capacity of each worker
 
-X = initial_feasible_solution(J, K, s_max, m)
+# Assuming service_times, costs, estimated_service_times, and estimated_profits have been calculated by Algorithm 1
+# Example dictionaries (replace with actual data)
+service_times = {
+    (1, 'worker1'): 10, (1, 'worker2'): 12,
+    (2, 'worker1'): 8, (2, 'worker2'): 9,
+    (3, 'worker1'): 15, (3, 'worker2'): 13,
+}
+costs = {
+    (1, 'worker1'): 5, (1, 'worker2'): 6,
+    (2, 'worker1'): 4, (2, 'worker2'): 5,
+    (3, 'worker1'): 7, (3, 'worker2'): 8,
+}
+estimated_service_times = {
+    (1, 'worker1'): 11, (1, 'worker2'): 12,
+    (2, 'worker1'): 9, (2, 'worker2'): 10,
+    (3, 'worker1'): 14, (3, 'worker2'): 13,
+}
+estimated_profits = {
+    (1, 'worker1'): 15, (1, 'worker2'): 18,
+    (2, 'worker1'): 20, (2, 'worker2'): 22,
+    (3, 'worker1'): 25, (3, 'worker2'): 27,
+}
+
+X = initial_feasible_solution(J, K, s_max, q_k, service_times, costs, estimated_service_times, estimated_profits)
 
 print("Initial Feasible Solution (Assignment Matrix X):")
 for j in J:
     for k in K:
         print(f"Order {j} assigned to {k}: {X[j][k]}")
+
