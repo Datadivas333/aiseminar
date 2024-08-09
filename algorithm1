@@ -1,0 +1,62 @@
+def calculate_service_time_and_cost(Jk, distances, current_location, pickup_locations, delivery_locations, service_times, travel_times, cost_per_distance, worker_id):
+    # Initialize variables
+    esj_k = {j: 0 for j in Jk}  # Service time for each order j in Jk
+    ecj_k = {j: 0 for j in Jk}  # Delivery cost for each order j in Jk
+
+    # Construct total workload set
+    J0_k = set()  # Set of undelivered orders (previous workload)
+    Jk = Jk.union(J0_k)  # Total workload set (including current and previous workload)
+
+    # Extract locations of interest
+    Lk = list(pickup_locations.values()) + list(delivery_locations.values())  # List of all locations
+    Vl = {l: 0 for l in Lk}  # Initialize visit flags for each location l in Lk
+
+    # Initialize loop variables
+    lk = current_location  # Current location of the worker
+    c = 0  # Counter for visited locations
+
+    # Iterate until all locations are visited
+    while c != len(Lk):
+        # Find the closest unvisited location
+        l0 = min((l for l in Lk if Vl[l] == 0), key=lambda l: distances[(lk, l)])
+
+        # Find the order associated with location l0
+        j = next(j for j in Jk if pickup_locations.get(j) == l0 or delivery_locations.get(j) == l0)
+
+        if l0 == pickup_locations[j]:  # Handle pickup location
+            esj_k[j] += travel_times[(lk, l0)] + service_times[j]
+            ecj_k[j] += cost_per_distance * distances[(lk, l0)]
+        elif l0 == delivery_locations[j]:  # Handle delivery location
+            if Vl[pickup_locations[j]] == 1:  # Only proceed if the pickup location was visited
+                esj_k[j] += travel_times[(lk, l0)]
+                ecj_k[j] += cost_per_distance * distances[(lk, l0)]
+            else:  # If pickup location wasn't visited, skip this location
+                continue
+
+        # Update loop variables
+        lk = l0
+        Vl[l0] = 1
+        c += 1
+
+    # Calculate total service time and cost
+    eSk = sum(esj_k.values())
+    Cek = sum(ecj_k.values())
+
+    return eSk, Cek
+
+
+# Example usage
+Jk = {1, 2, 3}  # Set of orders for the worker
+distances = {('loc1', 'loc2'): 10, ('loc1', 'loc3'): 20, ('loc2', 'loc3'): 15}  # Distance between locations
+current_location = 'loc1'  # Current location of the worker
+pickup_locations = {1: 'loc2', 2: 'loc3', 3: 'loc2'}  # Pickup locations for each order
+delivery_locations = {1: 'loc3', 2: 'loc1', 3: 'loc3'}  # Delivery locations for each order
+service_times = {1: 5, 2: 7, 3: 4}  # Service time required for each order
+travel_times = {('loc1', 'loc2'): 2, ('loc1', 'loc3'): 3, ('loc2', 'loc3'): 2}  # Travel time between locations
+cost_per_distance = 1.5  # Cost per unit distance
+
+worker_id = 'worker1'
+eSk, Cek = calculate_service_time_and_cost(Jk, distances, current_location, pickup_locations, delivery_locations, service_times, travel_times, cost_per_distance, worker_id)
+
+print(f"Total service time (eSk): {eSk}")
+print(f"Total delivery cost (Cek): {Cek}")
