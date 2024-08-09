@@ -1,0 +1,120 @@
+import random
+import numpy as np
+
+def fitness_function(X, profits, service_times, s_max, m):
+    """
+    Calculate the fitness of a solution X based on the profit and service time.
+    """
+    total_profit = 0
+    total_service_time = 0
+    K_x = set()  # Set of workers with at least one assigned order
+    
+    for j, workers in X.items():
+        for k, assigned in workers.items():
+            if assigned == 1:
+                K_x.add(k)
+                total_profit += profits[(j, k)]
+                total_service_time += service_times[(j, k)]
+
+    # Normalize service time and profit
+    s_k = total_service_time / (len(X) * s_max)
+    p_k = total_profit / sum([m[k] for k in K_x])
+    
+    if s_k > 1 or p_k < 0:  # Check constraints
+        return -1  # Invalid solution
+
+    return p_k - s_k  # Return the fitness value
+
+def calculate_wavelength(X, P, profits, service_times, s_max, m):
+    """
+    Calculate the wavelength λX for a solution X.
+    """
+    f_X = fitness_function(X, profits, service_times, s_max, m)
+    f_sum = sum(fitness_function(sol, profits, service_times, s_max, m) for sol in P)
+    
+    if f_X >= f_sum:
+        return len(X)  # Return maximum wavelength if the solution is as good as the sum of others
+    else:
+        return len(X) * f_sum / (f_sum - f_X)
+
+def flip_assignment(X, j, k):
+    """
+    Flip the assignment of order j to worker k in solution X.
+    """
+    X[j][k] = 1 - X[j][k]
+    return X
+
+def water_wave_optimization(J, K, s_max, m, profits, service_times, P_size=10, max_iter=100):
+    # Step 1: Generate an initial set of solutions P using Algorithm 2
+    P = [initial_feasible_solution(J, K, s_max, m) for _ in range(P_size)]
+    
+    # Step 2: Select the best initial solution X* from P
+    X_star = max(P, key=lambda X: fitness_function(X, profits, service_times, s_max, m))
+    
+    iter = 0
+    while iter <= max_iter:
+        for X in P:
+            # Step 6: Calculate λX for each X in P
+            lambda_X = calculate_wavelength(X, P, profits, service_times, s_max, m)
+            
+            # Step 7: Determine the number of propagation steps W
+            W = random.randint(1, int(lambda_X))
+            
+            # Step 8: Propagate X for W steps to generate X'
+            X_prime = X.copy()
+            for _ in range(W):
+                j = random.choice(J)
+                k = random.choice(K)
+                X_prime = flip_assignment(X_prime, j, k)
+            
+            # Step 13: If X' is better than X, replace X with X' in P
+            if fitness_function(X_prime, profits, service_times, s_max, m) > fitness_function(X, profits, service_times, s_max, m):
+                P.remove(X)
+                P.append(X_prime)
+                
+                # Step 15: If X' is better than X*, update X*
+                if fitness_function(X_prime, profits, service_times, s_max, m) > fitness_function(X_star, profits, service_times, s_max, m):
+                    X_star = X_prime
+            
+            # Step 18: Perform neighbourhood search around X*
+            nb = random.randint(1, len(K))
+            for _ in range(nb):
+                X_n = X_star.copy()
+                j = random.choice(J)
+                k = random.choice(K)
+                X_n = flip_assignment(X_n, j, k)
+                
+                # Step 23: If X_n is better than X*, update X*
+                if fitness_function(X_n, profits, service_times, s_max, m) > fitness_function(X_star, profits, service_times, s_max, m):
+                    X_star = X_n
+        
+        iter += 1
+    
+    # Step 30: Return the best solution X*
+    return X_star
+
+# Example usage
+J = [1, 2, 3]  # Set of orders
+K = ['worker1', 'worker2']  # Set of workers
+
+s_max = 15  # Maximum allowable service time
+m = {'worker1': 25, 'worker2': 20}  # Payment for each worker
+
+# Simulated profits and service times (replace with actual data)
+profits = {
+    (1, 'worker1'): 20, (1, 'worker2'): 18,
+    (2, 'worker1'): 22, (2, 'worker2'): 21,
+    (3, 'worker1'): 19, (3, 'worker2'): 17,
+}
+service_times = {
+    (1, 'worker1'): 10, (1, 'worker2'): 12,
+    (2, 'worker1'): 8, (2, 'worker2'): 9,
+    (3, 'worker1'): 15, (3, 'worker2'): 13,
+}
+
+X_star = water_wave_optimization(J, K, s_max, m, profits, service_times)
+
+print("Optimal Assignment (X*):")
+for j in J:
+    for k in K:
+        print(f"Order {j} assigned to {k}: {X_star[j][k]}")
