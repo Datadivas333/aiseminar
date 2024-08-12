@@ -1,116 +1,172 @@
+import pandas as pd
 import random
 import numpy as np
 
-def fitness_function(X, profits, service_times, s_max, m, beta, estimated_times):
+def load_initial_solutions(filename):
     """
-    Calculate the fitness of a solution X based on the modified profit and service time.
+    Load initial set of solutions from a CSV file.
+
+    :param filename: Path to the CSV file containing initial solutions.
+    :return: DataFrame containing the initial solutions.
+    """
+    return pd.read_csv(filename)
+
+def load_data():
+    """
+    Load input data from CSV files.
+
+    :return: A tuple containing:
+        - J: List of orders.
+        - K: List of workers.
+        - s_max: Maximum allowable service time for any worker.
+        - q_k: Dictionary where each worker's capacity is set to 1 (indicating each worker can handle only one order).
+        - service_times: Dictionary of actual service times for each (order, worker) pair.
+        - costs: Dictionary of delivery costs for each (order, worker) pair.
+        - estimated_profits: Dictionary of estimated profits for each (order, worker) pair.
+    """
+    # Load Orders
+    orders_df = pd.read_csv('orders.csv')
+    J = orders_df['order_id'].tolist()
+
+    # Load Workers
+    workers_df = pd.read_csv('workers.csv')
+    K = workers_df['worker_id'].tolist()
+
+    # Load Service Times
+    service_times_df = pd.read_csv('service_times.csv')
+    service_times = {(row['order_id'], row['worker_id']): row['service_time'] for index, row in service_times_df.iterrows()}
+
+    # Load Costs
+    costs_df = pd.read_csv('costs.csv')
+    costs = {(row['order_id'], row['worker_id']): row['cost'] for index, row in costs_df.iterrows()}
+
+    # Load Estimated Profits
+    estimated_profits_df = pd.read_csv('estimated_profits.csv')
+    estimated_profits = {(row['order_id'], row['worker_id']): row['estimated_profit'] for index, row in estimated_profits_df.iterrows()}
+
+    # Each worker can only take one order at a time (capacity = 1)
+    q_k = {worker: 1 for worker in K}
+
+    # Maximum allowable service time (example value)
+    s_max = 15
+
+    return J, K, s_max, q_k, service_times, costs, estimated_profits
+
+def fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
+    """
+    Calculate the fitness of a solution X based on the service time, costs, and profits.
+
+    :param X: Current solution (assignment matrix) where X[j][k] = 1 indicates order j is assigned to worker k.
+    :param service_times: Dictionary of actual service times for each (order, worker) pair.
+    :param costs: Dictionary of delivery costs for each (order, worker) pair.
+    :param estimated_profits: Dictionary of estimated profits for each (order, worker) pair.
+    :param s_max: Maximum allowable service time for any worker.
+    :param q_k: Dictionary of workers' maximum carrying capacity (set to 1 for all workers).
+    :return: Fitness value of the solution X (higher is better, -1 indicates an invalid solution).
     """
     total_profit = 0
     total_service_time = 0
-    K_x = set()  # Set of workers with at least one assigned order
-    
+    order_count = {k: 0 for k in q_k}  # Track the number of orders assigned to each worker
+
     for j, workers in X.items():
         for k, assigned in workers.items():
             if assigned == 1:
-                K_x.add(k)
-                # Calculate the actual service time
+                order_count[k] += 1
+                if order_count[k] > q_k[k]:
+                    return -1  # Invalid solution if a worker is assigned more than one order
+
                 s_jk = service_times[(j, k)]
-                # Calculate the estimated service time
-                s_tilde_jk = estimated_times[(j, k)]
-                # Calculate the payment with the conditional bonus
-                tau_jk = m[k] + beta * int(s_jk <= s_tilde_jk)
-                # Calculate the profit
-                p_jk = tau_jk - profits[(j, k)]
+                p_jk = estimated_profits[(j, k)]
                 total_profit += p_jk
                 total_service_time += s_jk
 
+                # Constraint check: service time
+                if s_jk > s_max:
+                    return -1  # Invalid solution if any constraint is violated
+
     # Normalize service time and profit
     s_k = total_service_time / (len(X) * s_max)
-    p_k = total_profit / sum([m[k] for k in K_x])
-    
+    p_k = total_profit / len(X)  # Simplified normalization
+
     if s_k > 1 or p_k < 0:  # Check constraints
         return -1  # Invalid solution
 
     return p_k - s_k  # Return the fitness value
 
-def water_wave_optimization(J, K, s_max, m, profits, service_times, estimated_times, beta, P_size=10, max_iter=100):
-    # Step 1: Generate an initial set of solutions P using Algorithm 2
-    P = [initial_feasible_solution(J, K, s_max, m) for _ in range(P_size)]
+def water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions_file, max_iter=100):
+    """
+    Perform the Water Wave Optimization (WWO) algorithm to find the best assignment of orders to workers.
+
+    :param J: List of orders.
+    :param K: List of workers.
+    :param s_max: Maximum allowable service time for any worker.
+    :param q_k: Dictionary of workers' maximum carrying capacity (set to 1 for all workers).
+    :param service_times: Dictionary of actual service times for each (order, worker) pair.
+    :param costs: Dictionary of delivery costs for each (order, worker) pair.
+    :param estimated_profits: Dictionary of estimated profits for each (order, worker) pair.
+    :param initial_solutions_file: Path to the CSV file containing the initial feasible solutions.
+    :param max_iter: Maximum number of iterations for the optimization process.
+    :return: Best solution (assignment matrix X*) found by the optimization algorithm.
+    """
+    # Step 1: Load an initial set of solutions P from a file
+    P = load_initial_solutions(initial_solutions_file)
     
-    # Step 2: Select the best initial solution X* from P
-    X_star = max(P, key=lambda X: fitness_function(X, profits, service_times, s_max, m, beta, estimated_times))
-    
+    # Step 2: Select the best initial solution X* from P based on the fitness function
+    X_star = max(P, key=lambda X: fitness_function(X, service_times, costs, estimated_profits, s_max, q_k))
+
     iter = 0
     while iter <= max_iter:
         for X in P:
-            # Step 6: Calculate λX for each X in P
-            lambda_X = calculate_wavelength(X, P, profits, service_times, s_max, m)
-            
-            # Step 7: Determine the number of propagation steps W
+            # Step 6: Calculate λX for each X in P (for simplicity, we keep λX constant here)
+            lambda_X = 1
+
+            # Step 7: Determine the number of propagation steps W (randomly chosen within λX)
             W = random.randint(1, int(lambda_X))
-            
+
             # Step 8: Propagate X for W steps to generate X'
             X_prime = X.copy()
             for _ in range(W):
                 j = random.choice(J)
                 k = random.choice(K)
-                X_prime = flip_assignment(X_prime, j, k)
-            
+                X_prime[j][k] = 1 - X_prime[j][k]  # Flip the assignment (0 to 1 or 1 to 0)
+
             # Step 13: If X' is better than X, replace X with X' in P
-            if fitness_function(X_prime, profits, service_times, s_max, m, beta, estimated_times) > fitness_function(X, profits, service_times, s_max, m, beta, estimated_times):
+            if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
                 P.remove(X)
                 P.append(X_prime)
-                
+
                 # Step 15: If X' is better than X*, update X*
-                if fitness_function(X_prime, profits, service_times, s_max, m, beta, estimated_times) > fitness_function(X_star, profits, service_times, s_max, m, beta, estimated_times):
+                if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_k):
                     X_star = X_prime
-            
+
             # Step 18: Perform neighbourhood search around X*
             nb = random.randint(1, len(K))
             for _ in range(nb):
                 X_n = X_star.copy()
                 j = random.choice(J)
                 k = random.choice(K)
-                X_n = flip_assignment(X_n, j, k)
-                
+                X_n[j][k] = 1 - X_n[j][k]  # Flip the assignment (0 to 1 or 1 to 0)
+
                 # Step 23: If X_n is better than X*, update X*
-                if fitness_function(X_n, profits, service_times, s_max, m, beta, estimated_times) > fitness_function(X_star, profits, service_times, s_max, m, beta, estimated_times):
+                if fitness_function(X_n, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_k):
                     X_star = X_n
-        
+
         iter += 1
-    
+
     # Step 30: Return the best solution X*
     return X_star
 
 # Example usage
-J = [1, 2, 3]  # Set of orders
-K = ['worker1', 'worker2']  # Set of workers
+J, K, s_max, q_k, service_times, costs, estimated_profits = load_data()
 
-s_max = 15  # Maximum allowable service time
-m = {'worker1': 25, 'worker2': 20}  # Payment for each worker
-beta = 5  # Bonus for on-time delivery
+# Use the filename of the precomputed initial solutions file (output from Algorithm 2)
+initial_solutions_file = 'initial_solutions.csv'
 
-# Simulated profits, service times, and estimated service times (replace with actual data)
-profits = {
-    (1, 'worker1'): 20, (1, 'worker2'): 18,
-    (2, 'worker1'): 22, (2, 'worker2'): 21,
-    (3, 'worker1'): 19, (3, 'worker2'): 17,
-}
-service_times = {
-    (1, 'worker1'): 10, (1, 'worker2'): 12,
-    (2, 'worker1'): 8, (2, 'worker2'): 9,
-    (3, 'worker1'): 15, (3, 'worker2'): 13,
-}
-estimated_times = {
-    (1, 'worker1'): 11, (1, 'worker2'): 12,
-    (2, 'worker1'): 9,  (2, 'worker2'): 10,
-    (3, 'worker1'): 14, (3, 'worker2'): 13,
-}
+# Run the Water Wave Optimization algorithm
+X_star = water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions_file)
 
-X_star = water_wave_optimization(J, K, s_max, m, profits, service_times, estimated_times, beta)
-
+# Output the optimal assignment found
 print("Optimal Assignment (X*):")
 for j in J:
     for k in K:
         print(f"Order {j} assigned to {k}: {X_star[j][k]}")
-
