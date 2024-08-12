@@ -1,51 +1,112 @@
-def calculate_total_service_time_and_cost(Jk, Lk, distances, travel_times, pickup_times, waiting_times, mu):
-    # Initialize service time and cost for each order
-    es = {j: 0 for j in Jk}
-    ec = {j: 0 for j in Jk}
+import pandas as pd
+import numpy as np
 
-    # Initialize visit status for each location
-    Vl = {l: 0 for l in Lk}
+def calculate_service_time(t_p, t_w, t_d):
+    """
+    Calculate the actual service time of a worker for an order.
 
-    # Current location of worker k
-    lk = "current_location_of_worker_k"  # Replace with actual current location
-    c = 0  # Counter for visited locations
+    :param t_p: Travel time from current location to pickup location.
+    :param t_w: Waiting time at the pickup location.
+    :param t_d: Travel time from pickup location to delivery location.
+    :return: Total service time.
+    """
+    return t_p + t_w + t_d
 
-    while c != len(Lk):
-        # Find the nearest unvisited location l0
-        l0 = min((l for l in Lk if Vl[l] == 0), key=lambda l: distances[(lk, l)])
+def calculate_delivery_cost(d_p, d_d, mu):
+    """
+    Calculate the delivery cost for an order based on distances and cost per unit distance.
 
-        # Determine the order associated with the location l0
-        j = get_order_associated_with_location(l0, Jk)  # Define this function as needed
+    :param d_p: Distance from current location to pickup location.
+    :param d_d: Distance from pickup location to delivery location.
+    :param mu: Cost per unit distance.
+    :return: Total delivery cost.
+    """
+    return mu * (d_p + d_d)
 
-        if l0 == pickup_location_of_order(j):  # Check if l0 is the pickup location
-            es[j] += travel_times[(lk, l0)] + waiting_times[j]
-            ec[j] += mu * distances[(lk, l0)]
-        elif l0 == delivery_location_of_order(j):  # Check if l0 is the delivery location
-            if Vl[pickup_location_of_order(j)] == 1:  # Check if pickup location was visited
-                es[j] += travel_times[(lk, l0)]
-                ec[j] += mu * distances[(lk, l0)]
-            else:
-                continue  # If pickup location not visited, continue
+def calculate_estimated_profit(m_jk, c_jk):
+    """
+    Calculate the estimated profit for a worker delivering an order.
 
-        # Update worker's location and visit status
-        lk = l0
-        Vl[l0] = 1
-        c += 1
+    :param m_jk: Payment received by the worker for delivering the order.
+    :param c_jk: Delivery cost incurred by the worker.
+    :return: Estimated profit.
+    """
+    return m_jk - c_jk
 
-    # Calculate total service time and cost
-    eSk = sum(es.values())
-    Cek = sum(ec.values())
+def algorithm_1(orders_file, workers_file, locations_file, instance_params_file):
+    """
+    Execute Algorithm 1 to calculate service times, delivery costs, and estimated profits.
 
-    return eSk, Cek
+    :param orders_file: Path to the orders data file (CSV).
+    :param workers_file: Path to the workers data file (CSV).
+    :param locations_file: Path to the locations data file (CSV).
+    :param instance_params_file: Path to the instance parameters file (CSV).
+    :return: DataFrames for service times, delivery costs, and estimated profits.
+    """
+    # Load data from CSV files
+    orders = pd.read_csv(orders_file)
+    workers = pd.read_csv(workers_file)
+    locations = pd.read_csv(locations_file)
+    instance_params = pd.read_csv(instance_params_file)
 
-# Example usage (replace with actual data):
-Jk = [1, 2, 3]  # Set of orders for worker k
-Lk = ['loc1', 'loc2', 'loc3', 'loc4']  # Set of locations
-distances = {('loc1', 'loc2'): 5, ('loc1', 'loc3'): 10, ('loc2', 'loc4'): 7}  # Distances between locations
-travel_times = {('loc1', 'loc2'): 3, ('loc1', 'loc3'): 6, ('loc2', 'loc4'): 4}  # Travel times between locations
-pickup_times = {1: 2, 2: 3, 3: 2}  # Pickup times
-waiting_times = {1: 1, 2: 2, 3: 1}  # Waiting times
-mu = 1.5  # Per unit travel cost
+    # Extract parameters from the instance parameters file
+    mu = instance_params.loc[0, 'mu']
+    m_jk = instance_params.loc[0, 'm_jk']
 
-eSk, Cek = calculate_total_service_time_and_cost(Jk, Lk, distances, travel_times, pickup_times, waiting_times, mu)
-print(f"Total Service Time: {eSk}, Total Delivery Cost: {Cek}")
+    # Initialize output dictionaries
+    service_times = {}
+    delivery_costs = {}
+    estimated_profits = {}
+
+    # Iterate over each order and worker pair
+    for i, order in orders.iterrows():
+        order_id = order['order_id']
+        pickup_location = order['pickup_location']
+        delivery_location = order['delivery_location']
+
+        for j, worker in workers.iterrows():
+            worker_id = worker['worker_id']
+            worker_location = worker['current_location']
+
+            # Calculate distances
+            d_p = np.sqrt((locations.loc[pickup_location, 'x'] - locations.loc[worker_location, 'x'])**2 +
+                          (locations.loc[pickup_location, 'y'] - locations.loc[worker_location, 'y'])**2)
+            d_d = np.sqrt((locations.loc[delivery_location, 'x'] - locations.loc[pickup_location, 'x'])**2 +
+                          (locations.loc[delivery_location, 'y'] - locations.loc[pickup_location, 'y'])**2)
+
+            # Calculate times (assume some function to calculate time based on distance, can be linear or based on speed)
+            t_p = d_p / instance_params.loc[0, 'speed']
+            t_w = order['waiting_time']
+            t_d = d_d / instance_params.loc[0, 'speed']
+
+            # Calculate service time
+            s_jk = calculate_service_time(t_p, t_w, t_d)
+            service_times[(order_id, worker_id)] = s_jk
+
+            # Calculate delivery cost
+            c_jk = calculate_delivery_cost(d_p, d_d, mu)
+            delivery_costs[(order_id, worker_id)] = c_jk
+
+            # Calculate estimated profit
+            p_jk = calculate_estimated_profit(m_jk, c_jk)
+            estimated_profits[(order_id, worker_id)] = p_jk
+
+    # Convert dictionaries to DataFrames for easier use in subsequent algorithms
+    service_times_df = pd.DataFrame.from_dict(service_times, orient='index', columns=['service_time'])
+    delivery_costs_df = pd.DataFrame.from_dict(delivery_costs, orient='index', columns=['delivery_cost'])
+    estimated_profits_df = pd.DataFrame.from_dict(estimated_profits, orient='index', columns=['estimated_profit'])
+
+    return service_times_df, delivery_costs_df, estimated_profits_df
+
+# Example usage
+orders_file = 'orders.csv'
+workers_file = 'workers.csv'
+locations_file = 'locations.csv'
+instance_params_file = 'instance_parameters.csv'
+
+service_times_df, delivery_costs_df, estimated_profits_df = algorithm_1(orders_file, workers_file, locations_file, instance_params_file)
+
+# Save the outputs to CSV files
+service_times_df.to_csv('service_times.csv')
+delivery_costs_df.to_csv('delivery_costs.csv')
+estimated_profits_df.to_csv('estimated_profits.csv')
