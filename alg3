@@ -1,172 +1,126 @@
 import pandas as pd
 import random
-import numpy as np
 
-def load_initial_solutions(filename):
-    """
-    Load initial set of solutions from a CSV file.
+# Load the CSV files
+costs_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\costs.csv')
+estimated_profits_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\estimated_profits.csv')
+initial_solutions_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\initial_solutions.csv')
+orders_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\orders.csv')
+service_times_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\service_times.csv')
+workers_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\workers.csv')
 
-    :param filename: Path to the CSV file containing initial solutions.
-    :return: DataFrame containing the initial solutions.
-    """
-    return pd.read_csv(filename)
+# Create the list of worker IDs
+K = workers_df['worker_id'].tolist()  # List of worker IDs
 
-def load_data():
-    """
-    Load input data from CSV files.
+# Convert DataFrames to Dictionaries
+costs = {(row['order_id'], row['worker_id']): row['cost'] for _, row in costs_df.iterrows()}
+estimated_profits = {(row['order_id'], row['worker_id']): row['estimated_profit'] for _, row in estimated_profits_df.iterrows()}
+service_times = {(row['order_id'], row['worker_id']): row['service_time'] for _, row in service_times_df.iterrows()}
 
-    :return: A tuple containing:
-        - J: List of orders.
-        - K: List of workers.
-        - s_max: Maximum allowable service time for any worker.
-        - q_k: Dictionary where each worker's capacity is set to 1 (indicating each worker can handle only one order).
-        - service_times: Dictionary of actual service times for each (order, worker) pair.
-        - costs: Dictionary of delivery costs for each (order, worker) pair.
-        - estimated_profits: Dictionary of estimated profits for each (order, worker) pair.
-    """
-    # Load Orders
-    orders_df = pd.read_csv('orders.csv')
-    J = orders_df['order_id'].tolist()
+# Clean the initial solutions DataFrame
+initial_solutions_df_cleaned = initial_solutions_df.dropna()
 
-    # Load Workers
-    workers_df = pd.read_csv('workers.csv')
-    K = workers_df['worker_id'].tolist()
+# Convert the cleaned initial solutions DataFrame into a list of dictionaries
+initial_solutions = []
+num_orders = len(orders_df)  # Number of orders
 
-    # Load Service Times
-    service_times_df = pd.read_csv('service_times.csv')
-    service_times = {(row['order_id'], row['worker_id']): row['service_time'] for index, row in service_times_df.iterrows()}
+# Process each chunk of rows as a separate matrix
+for i in range(0, len(initial_solutions_df_cleaned), num_orders):
+    solution = {}
+    chunk = initial_solutions_df_cleaned.iloc[i:i+num_orders]
+    for _, row in chunk.iterrows():
+        order_id = int(row['order_id'])
+        solution[order_id] = {worker_id: int(row[str(worker_id)]) for worker_id in K}
+    initial_solutions.append(solution)
 
-    # Load Costs
-    costs_df = pd.read_csv('costs.csv')
-    costs = {(row['order_id'], row['worker_id']): row['cost'] for index, row in costs_df.iterrows()}
-
-    # Load Estimated Profits
-    estimated_profits_df = pd.read_csv('estimated_profits.csv')
-    estimated_profits = {(row['order_id'], row['worker_id']): row['estimated_profit'] for index, row in estimated_profits_df.iterrows()}
-
-    # Each worker can only take one order at a time (capacity = 1)
-    q_k = {worker: 1 for worker in K}
-
-    # Maximum allowable service time (example value)
-    s_max = 15
-
-    return J, K, s_max, q_k, service_times, costs, estimated_profits
-
+# Define the fitness function
 def fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
-    """
-    Calculate the fitness of a solution X based on the service time, costs, and profits.
-
-    :param X: Current solution (assignment matrix) where X[j][k] = 1 indicates order j is assigned to worker k.
-    :param service_times: Dictionary of actual service times for each (order, worker) pair.
-    :param costs: Dictionary of delivery costs for each (order, worker) pair.
-    :param estimated_profits: Dictionary of estimated profits for each (order, worker) pair.
-    :param s_max: Maximum allowable service time for any worker.
-    :param q_k: Dictionary of workers' maximum carrying capacity (set to 1 for all workers).
-    :return: Fitness value of the solution X (higher is better, -1 indicates an invalid solution).
-    """
     total_profit = 0
     total_service_time = 0
-    order_count = {k: 0 for k in q_k}  # Track the number of orders assigned to each worker
+    order_count = {k: 0 for k in q_k}
 
     for j, workers in X.items():
         for k, assigned in workers.items():
             if assigned == 1:
                 order_count[k] += 1
                 if order_count[k] > q_k[k]:
-                    return -1  # Invalid solution if a worker is assigned more than one order
+                    return -1
 
                 s_jk = service_times[(j, k)]
                 p_jk = estimated_profits[(j, k)]
                 total_profit += p_jk
                 total_service_time += s_jk
 
-                # Constraint check: service time
                 if s_jk > s_max:
-                    return -1  # Invalid solution if any constraint is violated
+                    return -1
 
-    # Normalize service time and profit
     s_k = total_service_time / (len(X) * s_max)
-    p_k = total_profit / len(X)  # Simplified normalization
+    p_k = total_profit / len(X)
 
-    if s_k > 1 or p_k < 0:  # Check constraints
-        return -1  # Invalid solution
+    if s_k > 1 or p_k < 0:
+        return -1
 
-    return p_k - s_k  # Return the fitness value
+    return p_k - s_k
 
-def water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions_file, max_iter=100):
-    """
-    Perform the Water Wave Optimization (WWO) algorithm to find the best assignment of orders to workers.
+# Updated λX calculation to ensure it's at least 1
+def calculate_lambda_X(X, P, lambda_max):
+    sum_f_X_prime = sum(fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) for X_prime in P)
+    f_X = fitness_function(X, service_times, costs, estimated_profits, s_max, q_k)
+    if sum_f_X_prime == 0:
+        return lambda_max  # Avoid division by zero
+    lambda_X = lambda_max * (sum_f_X_prime - f_X) / sum_f_X_prime
+    return max(1, lambda_X)  # Ensure λX is at least 1
 
-    :param J: List of orders.
-    :param K: List of workers.
-    :param s_max: Maximum allowable service time for any worker.
-    :param q_k: Dictionary of workers' maximum carrying capacity (set to 1 for all workers).
-    :param service_times: Dictionary of actual service times for each (order, worker) pair.
-    :param costs: Dictionary of delivery costs for each (order, worker) pair.
-    :param estimated_profits: Dictionary of estimated profits for each (order, worker) pair.
-    :param initial_solutions_file: Path to the CSV file containing the initial feasible solutions.
-    :param max_iter: Maximum number of iterations for the optimization process.
-    :return: Best solution (assignment matrix X*) found by the optimization algorithm.
-    """
-    # Step 1: Load an initial set of solutions P from a file
-    P = load_initial_solutions(initial_solutions_file)
-    
-    # Step 2: Select the best initial solution X* from P based on the fitness function
+# Define the Water Wave Optimization algorithm
+def water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, P, lambda_max, max_iter=100):
     X_star = max(P, key=lambda X: fitness_function(X, service_times, costs, estimated_profits, s_max, q_k))
 
     iter = 0
     while iter <= max_iter:
         for X in P:
-            # Step 6: Calculate λX for each X in P (for simplicity, we keep λX constant here)
-            lambda_X = 1
-
-            # Step 7: Determine the number of propagation steps W (randomly chosen within λX)
+            lambda_X = calculate_lambda_X(X, P, lambda_max)
             W = random.randint(1, int(lambda_X))
 
-            # Step 8: Propagate X for W steps to generate X'
             X_prime = X.copy()
             for _ in range(W):
                 j = random.choice(J)
                 k = random.choice(K)
-                X_prime[j][k] = 1 - X_prime[j][k]  # Flip the assignment (0 to 1 or 1 to 0)
+                X_prime[j][k] = 1 - X_prime[j][k]
 
-            # Step 13: If X' is better than X, replace X with X' in P
             if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
                 P.remove(X)
                 P.append(X_prime)
 
-                # Step 15: If X' is better than X*, update X*
                 if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_k):
                     X_star = X_prime
 
-            # Step 18: Perform neighbourhood search around X*
             nb = random.randint(1, len(K))
             for _ in range(nb):
                 X_n = X_star.copy()
                 j = random.choice(J)
                 k = random.choice(K)
-                X_n[j][k] = 1 - X_n[j][k]  # Flip the assignment (0 to 1 or 1 to 0)
+                X_n[j][k] = 1 - X_n[j][k]
 
-                # Step 23: If X_n is better than X*, update X*
                 if fitness_function(X_n, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_k):
                     X_star = X_n
 
         iter += 1
 
-    # Step 30: Return the best solution X*
     return X_star
 
 # Example usage
-J, K, s_max, q_k, service_times, costs, estimated_profits = load_data()
+J = orders_df['order_id'].tolist()  # Order IDs
+K = workers_df['worker_id'].tolist()  # Worker IDs
+s_max = 15  # Example value, adjust as necessary
+q_k = {worker_id: 1 for worker_id in K}  # Worker capacity set to 1 for all workers
+lambda_max = len(J)  # Maximum allowable wavelength
 
-# Use the filename of the precomputed initial solutions file (output from Algorithm 2)
-initial_solutions_file = 'initial_solutions.csv'
-
-# Run the Water Wave Optimization algorithm
-X_star = water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions_file)
+# Run the Water Wave Optimization algorithm using the loaded data
+X_star = water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions, lambda_max)
 
 # Output the optimal assignment found
 print("Optimal Assignment (X*):")
 for j in J:
     for k in K:
-        print(f"Order {j} assigned to {k}: {X_star[j][k]}")
+        if X_star[j][k] == 1:
+            print(f"Order {j} assigned to Worker {k}")
