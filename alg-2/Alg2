@@ -1,0 +1,150 @@
+import pandas as pd
+import random
+
+
+
+def calculate_utility(p_jk, s_jk):
+    """
+    Calculate the utility value for a worker-order pair.
+
+    :param p_jk: Estimated profit for worker k delivering order j.
+    :param s_jk: Service time for worker k delivering order j.
+    :return: Utility value (p_jk - s_jk).
+    """
+    return p_jk - s_jk
+
+def generate_initial_feasible_solution(orders, workers, service_times, estimated_profits, s_max):
+    """
+    Generate an initial feasible solution where each worker can only handle one order at a time.
+
+    :param orders: List of orders.
+    :param workers: List of workers.
+    :param service_times: DataFrame containing service times for each (order, worker) pair.
+    :param estimated_profits: DataFrame containing estimated profits for each (order, worker) pair.
+    :param s_max: Maximum allowable service time for any worker.
+    :return: Initial feasible solution as a dictionary.
+    """
+    # Initialize assignment matrix X[j][k] = 0 for all j ∈ J, k ∈ K
+    X = {j: {k: 0 for k in workers} for j in orders}
+
+    # List to store utility values and corresponding (order, worker) pairs
+    F = []
+
+    # Calculate utility values and build the list F
+    for j in orders:
+        for k in workers:
+            s_jk = service_times.loc[(j, k), 'service_time']
+            p_jk = estimated_profits.loc[(j, k), 'estimated_profit']
+           
+            # Calculate the utility value for the pair (j, k)
+            utility = calculate_utility(p_jk, s_jk)
+            F.append((j, k, utility))
+
+    # Sort F in descending order of utility value
+    F.sort(key=lambda x: x[2], reverse=True)
+
+    # Randomly select an index from F to introduce diversity in the solution generation
+    a = random.randint(0, len(F) - 1)
+
+    # Initialize the counter for selected pairs
+    c = 0
+
+    # Set a maximum number of iterations to prevent infinite loop
+    max_iterations = len(F) * 2  # Arbitrary large number to prevent excessive looping
+    iterations = 0
+
+    # While there are pairs left in F, try to build the feasible solution
+    while c < len(orders) and iterations < max_iterations:
+        j, k, _ = F[a]
+        print(f"Processing pair: (order: {j}, worker: {k}), utility: {_}")
+
+        # Debugging: Print the service time
+        service_time = service_times.at[(j, k), 'service_time']
+        print(f"Service time for (order: {j}, worker: {k}) is {service_time}")
+        
+        # Debugging: Check worker availability
+        worker_available = all(X[j2][k] == 0 for j2 in orders)
+        print(f"Worker {k} availability: {worker_available}")
+
+        # Check feasibility: s_jk ≤ s_max and the worker has not been assigned another order
+        if service_time <= s_max and worker_available:
+            # Assign order j to worker k
+            X[j][k] = 1
+            c += 1
+            print(f"Assigned order {j} to worker {k}. c={c}")
+
+        # Move to the next pair in F
+        a = (a + 1) % len(F)
+        print(f"Next a: {a}")
+
+        iterations += 1
+        if iterations % 10 == 0:  # Print progress every 10 iterations
+            print(f"Progress: {iterations} iterations completed")
+
+    return X
+
+def algorithm_2(orders_file, workers_file, service_times_file, estimated_profits_file, s_max):
+    """
+    Execute Algorithm 2 to generate a set of initial feasible solutions.
+
+    :param orders_file: Path to the orders data file (CSV).
+    :param workers_file: Path to the workers data file (CSV).
+    :param service_times_file: Path to the service times data file (CSV).
+    :param estimated_profits_file: Path to the estimated profits data file (CSV).
+    :param s_max: Maximum allowable service time for any worker.
+    :return: List of initial feasible solutions.
+    """
+    try:
+        # Load data from CSV files
+        print("Loading orders file")
+        orders_df = pd.read_csv(orders_file)
+        print(f"Orders loaded: {orders_df.shape}")
+        
+        print("Loading workers file")
+        workers_df = pd.read_csv(workers_file)
+        print(f"Workers loaded: {workers_df.shape}")
+        
+        print("Loading service times")
+        service_times = pd.read_csv(service_times_file, index_col=[0, 1])
+        print(f"Service times loaded: {service_times.shape}")
+        
+        print("Loading estimated profits")
+        estimated_profits = pd.read_csv(estimated_profits_file, index_col=[0, 1])
+        print(f"Estimated profits loaded: {estimated_profits.shape}")
+
+        # Extract orders and workers as lists
+        orders = orders_df['order_id'].tolist()
+        workers = workers_df['worker_id'].tolist()
+
+        # Generate an initial feasible solution
+        initial_solution = generate_initial_feasible_solution(orders, workers, service_times, estimated_profits, s_max)
+
+        # Return the generated solution
+        return initial_solution
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+s_max = 50  # Maximum allowable service time
+
+orders_file = r"D:\MASTER DEGREE IN GERMANY\0. STUDIUM\Semester 2\Seminar AI\Alg2\orders_file.csv"
+workers_file = r"D:\MASTER DEGREE IN GERMANY\0. STUDIUM\Semester 2\Seminar AI\Alg2\workers_file.csv"
+service_times_file = r"D:\MASTER DEGREE IN GERMANY\0. STUDIUM\Semester 2\Seminar AI\Alg2\service_times_file.csv"
+estimated_profits_file = r"D:\MASTER DEGREE IN GERMANY\0. STUDIUM\Semester 2\Seminar AI\Alg2\estimated_profits_file.csv"
+
+
+
+# Run Algorithm 2 to generate initial feasible solutions
+initial_solution = algorithm_2(orders_file, workers_file, service_times_file, estimated_profits_file, s_max)
+
+if initial_solution:
+    # Convert the initial solution to a DataFrame for easier inspection
+    initial_solution_df = pd.DataFrame(initial_solution).T
+    
+    # Save the initial solution to a CSV file
+    initial_solution_df.to_csv('initial_solutions.csv')
+    
+    print("Initial feasible solution generated and saved to 'initial_solutions.csv'.")
+else:
+    print("No solution was generated.")
