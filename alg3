@@ -1,21 +1,41 @@
+import os
 import pandas as pd
 import random
 
-# Load the CSV files
-costs_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\costs.csv')
-estimated_profits_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\estimated_profits.csv')
-initial_solutions_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\initial_solutions.csv')
-orders_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\orders.csv')
-service_times_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\service_times.csv')
-workers_df = pd.read_csv(r'C:\Users\Minjin\PycharmProjects\AiSeminar\workers.csv')
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+print(f"Script directory: {script_dir}")
+
+# Define paths relative to the script's location
+costs_path = os.path.join(script_dir, 'costs.csv')
+estimated_profits_path = os.path.join(script_dir, 'estimated_profits.csv')
+initial_solutions_path = os.path.join(script_dir, 'initial_solutions.csv')
+orders_path = os.path.join(script_dir, 'orders.csv')
+service_times_path = os.path.join(script_dir, 'service_times.csv')
+workers_path = os.path.join(script_dir, 'workers.csv')
+
+# Print out the paths to ensure they are correct
+print(f"Looking for costs.csv at: {costs_path}")
+
+# Load the CSV files using relative paths
+print("Loading CSV files...")
+costs_df = pd.read_csv(costs_path)
+estimated_profits_df = pd.read_csv(estimated_profits_path)
+initial_solutions_df = pd.read_csv(initial_solutions_path)
+orders_df = pd.read_csv(orders_path)
+service_times_df = pd.read_csv(service_times_path)
+workers_df = pd.read_csv(workers_path)
+print("CSV files loaded successfully.")
 
 # Create the list of worker IDs
 K = workers_df['worker_id'].tolist()  # List of worker IDs
 
 # Convert DataFrames to Dictionaries
+print("Converting DataFrames to dictionaries...")
 costs = {(row['order_id'], row['worker_id']): row['cost'] for _, row in costs_df.iterrows()}
 estimated_profits = {(row['order_id'], row['worker_id']): row['estimated_profit'] for _, row in estimated_profits_df.iterrows()}
 service_times = {(row['order_id'], row['worker_id']): row['service_time'] for _, row in service_times_df.iterrows()}
+print("Conversion to dictionaries completed.")
 
 # Clean the initial solutions DataFrame
 initial_solutions_df_cleaned = initial_solutions_df.dropna()
@@ -24,6 +44,7 @@ initial_solutions_df_cleaned = initial_solutions_df.dropna()
 initial_solutions = []
 num_orders = len(orders_df)  # Number of orders
 
+print("Processing initial solutions...")
 # Process each chunk of rows as a separate matrix
 for i in range(0, len(initial_solutions_df_cleaned), num_orders):
     solution = {}
@@ -32,6 +53,7 @@ for i in range(0, len(initial_solutions_df_cleaned), num_orders):
         order_id = int(row['order_id'])
         solution[order_id] = {worker_id: int(row[str(worker_id)]) for worker_id in K}
     initial_solutions.append(solution)
+print("Initial solutions processed.")
 
 # Define the fitness function
 def fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
@@ -73,8 +95,8 @@ def calculate_lambda_X(X, P, lambda_max):
 
 # Define the Water Wave Optimization algorithm
 def water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, P, lambda_max, max_iter=100):
+    print("Starting the Water Wave Optimization...")
     X_star = max(P, key=lambda X: fitness_function(X, service_times, costs, estimated_profits, s_max, q_k))
-
     iter = 0
     while iter <= max_iter:
         for X in P:
@@ -105,7 +127,7 @@ def water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_pr
                     X_star = X_n
 
         iter += 1
-
+    print("Finished the optimization.")
     return X_star
 
 # Example usage
@@ -118,9 +140,19 @@ lambda_max = len(J)  # Maximum allowable wavelength
 # Run the Water Wave Optimization algorithm using the loaded data
 X_star = water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions, lambda_max)
 
-# Output the optimal assignment found
-print("Optimal Assignment (X*):")
+# Convert the result to a DataFrame
+output_rows = []
 for j in J:
     for k in K:
         if X_star[j][k] == 1:
-            print(f"Order {j} assigned to Worker {k}")
+            output_rows.append({"order_id": j, "worker_id": k})
+
+print("Creating output DataFrame...")
+output_df = pd.DataFrame(output_rows)
+
+# Save the result to a CSV file
+output_file = os.path.join(script_dir, 'optimal_assignment.csv')
+print(f"Saving output to {output_file}...")
+output_df.to_csv(output_file, index=False)
+
+print("Output saved successfully.")
