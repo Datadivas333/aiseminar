@@ -97,10 +97,25 @@ def algorithm_1(folder_path, instance_num):
             except KeyError as e:
                 print(f"Error processing order {order_id} and worker {worker_id}: {e}")
 
-    # Convert dictionaries to DataFrames for easier use in subsequent algorithms
+  # Convert dictionaries to DataFrames for easier use in subsequent algorithms
     service_times_df = pd.DataFrame.from_dict(service_times, orient='index', columns=['service_time'])
     delivery_costs_df = pd.DataFrame.from_dict(delivery_costs, orient='index', columns=['delivery_cost'])
     estimated_profits_df = pd.DataFrame.from_dict(estimated_profits, orient='index', columns=['estimated_profit'])
+
+    # Convert the tuple index into two separate columns: order_id and worker_id for all DataFrames
+    for df in [service_times_df, delivery_costs_df, estimated_profits_df]:
+        df['order_id'] = df.index.map(lambda x: x[0])
+        df['worker_id'] = df.index.map(lambda x: x[1])
+
+    # Round the numeric values to 2 decimal places for all DataFrames
+    service_times_df['service_time'] = service_times_df['service_time'].round(5)
+    delivery_costs_df['delivery_cost'] = delivery_costs_df['delivery_cost'].round(5)
+    estimated_profits_df['estimated_profit'] = estimated_profits_df['estimated_profit'].round(5)
+
+    # Reorder the columns to match the desired output format
+    service_times_df = service_times_df[['order_id', 'worker_id', 'service_time']]
+    delivery_costs_df = delivery_costs_df[['order_id', 'worker_id', 'delivery_cost']]
+    estimated_profits_df = estimated_profits_df[['order_id', 'worker_id', 'estimated_profit']]
 
     return service_times_df, delivery_costs_df, estimated_profits_df
 
@@ -122,9 +137,9 @@ for folder, instance_num in zip(input_folders, instance_numbers):
             os.makedirs(output_dir)
 
         # Save the outputs to CSV files in the specified folder
-        service_times_df.to_csv(os.path.join(output_dir, f'service-times-{instance_num}.csv'))
-        delivery_costs_df.to_csv(os.path.join(output_dir, f'delivery-costs-{instance_num}.csv'))
-        estimated_profits_df.to_csv(os.path.join(output_dir, f'estimated-profits-{instance_num}.csv'))
+        service_times_df.to_csv(os.path.join(output_dir, f'service-times-{instance_num}.csv'), index=False)
+        delivery_costs_df.to_csv(os.path.join(output_dir, f'delivery-costs-{instance_num}.csv'), index=False)
+        estimated_profits_df.to_csv(os.path.join(output_dir, f'estimated-profits-{instance_num}.csv'), index=False)
 
         print(f"Instance {instance_num} processed and results saved to {output_dir}.")
 
