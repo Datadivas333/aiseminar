@@ -27,14 +27,14 @@ def calculate_average_speed(input_file, output_file):
             pick_up_lat = int(row['pick_up_lat']) / 1e6
             delivery_lng = int(row['delivery_lng']) / 1e6
             delivery_lat = int(row['delivery_lat']) / 1e6
-            grab_time = int(row['grab_time'])
+            fetch_time = int(row['fetch_time'])
             arrive_time = int(row['arrive_time'])
 
             # Calculate distance between pickup and delivery points
             distance = haversine(pick_up_lng, pick_up_lat, delivery_lng, delivery_lat)
 
             # Calculate time duration in hours
-            time_duration = (arrive_time - grab_time) / 3600  # convert seconds to hours
+            time_duration = (arrive_time - fetch_time) / 3600  # convert seconds to hours
 
             if time_duration > 0:  # Avoid division by zero
                 total_distance += distance
