@@ -2,18 +2,43 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime, timezone
+from math import radians, sin, cos, sqrt, atan2
 
-def convert_unix_to_hours(unix_timestamp):
-    # Convert Unix timestamp to a datetime object
-    dt = datetime.fromtimestamp(unix_timestamp, timezone.utc)
-    # Calculate time difference from the timestamp to the current time (UTC aware)
-    time_difference = datetime.now(timezone.utc) - dt
-    # Return the difference in hours
-    return time_difference.total_seconds() / 3600  # Convert seconds to hours
+def calculate_waiting_time(fetch_time, ready_time):
+    # Convert both fetch_time and ready_time to datetime objects
+    fetch_time_dt = datetime.fromtimestamp(fetch_time, timezone.utc)
+    ready_time_dt = datetime.fromtimestamp(ready_time, timezone.utc)
+
+    # If fetch_time is less than or equal to ready_time, waiting time is 0
+    if fetch_time_dt <= ready_time_dt:
+        return 0
+    
+    # Otherwise, calculate the waiting time in minutes
+    waiting_time_seconds = (fetch_time_dt - ready_time_dt).total_seconds()
+    return waiting_time_seconds / 60  # Convert seconds to minutes
 
 def scale_coordinates(value, scale_factor=1e6):
     # Assuming the input data is scaled and needs to be reduced to a meaningful value
     return value / scale_factor
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371.0  # Radius of the Earth in kilometers
+    # Convert latitude and longitude from degrees to radians
+    lat1_rad = radians(lat1)
+    lon1_rad = radians(lon1)
+    lat2_rad = radians(lat2)
+    lon2_rad = radians(lon2)
+    
+    # Compute differences
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    
+    # Haversine formula
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    
+    return distance
 
 def algorithm_1(folder_path, instance_num):
     # Construct the file paths based on the instance number
@@ -33,8 +58,8 @@ def algorithm_1(folder_path, instance_num):
     locations = pd.read_csv(locations_file)
     instance_params = pd.read_csv(instance_params_file)
 
-    # Convert 'waiting_time' from Unix timestamps to hours
-    orders['waiting_time'] = orders['waiting_time'].apply(convert_unix_to_hours)
+    # Calculate waiting_time based on fetch_time and ready_time
+    orders['waiting_time'] = orders.apply(lambda row: calculate_waiting_time(row['fetch_time'], row['ready_time']), axis=1)
 
     # Standardize location IDs (strip whitespace, convert to uppercase)
     locations['location_id'] = locations['location_id'].str.strip().str.upper()
@@ -67,20 +92,19 @@ def algorithm_1(folder_path, instance_num):
             worker_location = worker['current_location']
 
             try:
-                # Calculate distances (Euclidean distance formula)
-                d_p = np.sqrt(
-                    (locations.loc[locations['location_id'] == pickup_location, 'x'].values[0] - locations.loc[locations['location_id'] == worker_location, 'x'].values[0])**2 +
-                    (locations.loc[locations['location_id'] == pickup_location, 'y'].values[0] - locations.loc[locations['location_id'] == worker_location, 'y'].values[0])**2
-                )
-                d_d = np.sqrt(
-                    (locations.loc[locations['location_id'] == delivery_location, 'x'].values[0] - locations.loc[locations['location_id'] == pickup_location, 'x'].values[0])**2 +
-                    (locations.loc[locations['location_id'] == delivery_location, 'y'].values[0] - locations.loc[locations['location_id'] == pickup_location, 'y'].values[0])**2
-                )
+                # Extract coordinates
+                worker_coords = locations.loc[locations['location_id'] == worker_location, ['x', 'y']].values[0]
+                pickup_coords = locations.loc[locations['location_id'] == pickup_location, ['x', 'y']].values[0]
+                delivery_coords = locations.loc[locations['location_id'] == delivery_location, ['x', 'y']].values[0]
+
+                # Calculate distances using the Haversine formula
+                d_p = haversine(worker_coords[1], worker_coords[0], pickup_coords[1], pickup_coords[0])
+                d_d = haversine(pickup_coords[1], pickup_coords[0], delivery_coords[1], delivery_coords[0])
 
                 # Calculate times (using the speed parameter to determine travel time)
-                t_p = d_p / speed
-                t_w = order['waiting_time']  # This is now in hours
-                t_d = d_d / speed
+                t_p = (d_p / speed) * 60  # Convert hours to minutes
+                t_w = order['waiting_time']  # This is now in minutes
+                t_d = (d_d / speed) * 60  # Convert hours to minutes
 
                 # Calculate service time
                 s_ow = t_p + t_w + t_d
@@ -97,7 +121,7 @@ def algorithm_1(folder_path, instance_num):
             except KeyError as e:
                 print(f"Error processing order {order_id} and worker {worker_id}: {e}")
 
-  # Convert dictionaries to DataFrames for easier use in subsequent algorithms
+    # Convert dictionaries to DataFrames for easier use in subsequent algorithms
     service_times_df = pd.DataFrame.from_dict(service_times, orient='index', columns=['service_time'])
     delivery_costs_df = pd.DataFrame.from_dict(delivery_costs, orient='index', columns=['delivery_cost'])
     estimated_profits_df = pd.DataFrame.from_dict(estimated_profits, orient='index', columns=['estimated_profit'])
@@ -107,7 +131,7 @@ def algorithm_1(folder_path, instance_num):
         df['order_id'] = df.index.map(lambda x: x[0])
         df['worker_id'] = df.index.map(lambda x: x[1])
 
-    # Round the numeric values to 2 decimal places for all DataFrames
+    # Round the numeric values to 5 decimal places for all DataFrames
     service_times_df['service_time'] = service_times_df['service_time'].round(5)
     delivery_costs_df['delivery_cost'] = delivery_costs_df['delivery_cost'].round(5)
     estimated_profits_df['estimated_profit'] = estimated_profits_df['estimated_profit'].round(5)
