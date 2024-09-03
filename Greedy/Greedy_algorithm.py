@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-fbgb
+
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 print(f"Script directory: {script_dir}")
