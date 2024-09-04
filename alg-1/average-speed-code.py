@@ -57,14 +57,14 @@ def calculate_average_speed(input_file, output_file):
 
 # List of input files and their corresponding output files
 input_files = [
-    'average-speed-files/speed-input-01.csv',
-    'average-speed-files/speed-input-02.csv',
-    'average-speed-files/speed-input-03.csv'
+    'alg-1/average-speed-files/speed-input-01.csv',
+    'alg-1/average-speed-files/speed-input-02.csv',
+    'alg-1/average-speed-files/speed-input-03.csv'
 ]
 output_files = [
-    'average-speed-files/speed-01.csv',
-    'average-speed-files/speed-02.csv',
-    'average-speed-files/speed-03.csv'
+    'alg-1/average-speed-files/speed-01.csv',
+    'alg-1/average-speed-files/speed-02.csv',
+    'alg-1/average-speed-files/speed-03.csv'
 ]
 
 # Iterate over each input and output file pair
