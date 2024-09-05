@@ -180,7 +180,7 @@ for instance_num in instance_numbers:
     # Define output path for this instance
     instance_output_dir = os.path.join(output_base_dir, f'instance-{instance_num}')
     os.makedirs(instance_output_dir, exist_ok=True)  # Ensure the directory exists
-    output_file = os.path.join(instance_output_dir, 'optimal_assignment_with_metrics.csv')
+    output_file = os.path.join(instance_output_dir, 'optimal_assignment.csv')
 
     # Save the result to a CSV file
     print(f"Saving output to {output_file}...")
