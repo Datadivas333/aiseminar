@@ -113,7 +113,7 @@ def algorithm_2(orders_file, workers_file, service_times_file, estimated_profits
 s_max = 100
 
 # Define the maximum number of solutions to find
-max_solutions = 1  # Only produce 1 solution
+max_solutions = 20
 
 # Define file paths
 base_dir = os.path.dirname(__file__)
