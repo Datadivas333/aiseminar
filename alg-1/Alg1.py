@@ -68,6 +68,11 @@ def algorithm_1(folder_path, instance_num):
     service_times = {}
     delivery_costs = {}
     estimated_profits = {}
+    
+    # dictionaries to store t_p, t_d, t_w
+    pickup_times = {}
+    delivery_times = {}
+    waiting_times = {}
 
     for _, order in orders.iterrows():
         order_id = order['order_id']
@@ -92,6 +97,11 @@ def algorithm_1(folder_path, instance_num):
                 t_w = order['waiting_time']  # This is now in minutes
                 t_d = (d_d / speed) * 60  # Convert hours to minutes
 
+                # Store the times
+                pickup_times[(order_id, worker_id)] = t_p
+                waiting_times[(order_id, worker_id)] = t_w
+                delivery_times[(order_id, worker_id)] = t_d
+
                 # Calculate service time
                 s_ow = t_p + t_w + t_d
                 service_times[(order_id, worker_id)] = s_ow
@@ -107,19 +117,35 @@ def algorithm_1(folder_path, instance_num):
             except KeyError as e:
                 print(f"Error processing order {order_id} and worker {worker_id}: {e}")
 
+    # Convert dictionaries to DataFrames
     service_times_df = pd.DataFrame.from_dict(service_times, orient='index', columns=['service_time'])
     delivery_costs_df = pd.DataFrame.from_dict(delivery_costs, orient='index', columns=['delivery_cost'])
     estimated_profits_df = pd.DataFrame.from_dict(estimated_profits, orient='index', columns=['estimated_profit'])
+    
+    # New DataFrames for t_p, t_d, t_w
+    pickup_times_df = pd.DataFrame.from_dict(pickup_times, orient='index', columns=['t_p'])
+    delivery_times_df = pd.DataFrame.from_dict(delivery_times, orient='index', columns=['t_d'])
+    waiting_times_df = pd.DataFrame.from_dict(waiting_times, orient='index', columns=['t_w'])
 
-    for df in [service_times_df, delivery_costs_df, estimated_profits_df]:
+    # Adding order_id and worker_id columns for merging
+    for df in [service_times_df, delivery_costs_df, estimated_profits_df, pickup_times_df, delivery_times_df, waiting_times_df]:
         df['order_id'] = df.index.map(lambda x: x[0])
         df['worker_id'] = df.index.map(lambda x: x[1])
 
+    # Rounding values for readability
     service_times_df['service_time'] = service_times_df['service_time'].round(5)
     delivery_costs_df['delivery_cost'] = delivery_costs_df['delivery_cost'].round(5)
     estimated_profits_df['estimated_profit'] = estimated_profits_df['estimated_profit'].round(5)
+    pickup_times_df['t_p'] = pickup_times_df['t_p'].round(5)
+    delivery_times_df['t_d'] = delivery_times_df['t_d'].round(5)
+    waiting_times_df['t_w'] = waiting_times_df['t_w'].round(5)
 
-    service_times_df = service_times_df[['order_id', 'worker_id', 'service_time']]
+    # Merge the data into the service_times_df
+    service_times_df = service_times_df.merge(pickup_times_df, on=['order_id', 'worker_id'], how='left')
+    service_times_df = service_times_df.merge(delivery_times_df, on=['order_id', 'worker_id'], how='left')
+    service_times_df = service_times_df.merge(waiting_times_df, on=['order_id', 'worker_id'], how='left')
+
+    service_times_df = service_times_df[['order_id', 'worker_id', 'service_time', 't_p', 't_d', 't_w']]
     delivery_costs_df = delivery_costs_df[['order_id', 'worker_id', 'delivery_cost']]
     estimated_profits_df = estimated_profits_df[['order_id', 'worker_id', 'estimated_profit']]
 
