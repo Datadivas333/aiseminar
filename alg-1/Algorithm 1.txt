@@ -1,41 +1,44 @@
 Algorithm 1
-1. Purpose 
-This algorithm aims to optimize the route and calculate the time and cost for a worker. It uses an iterative process to visit locations, either picking up or delivering orders while keeping track of the worker's travel time and cost. Finally, it calculates the total time and cost for the worker based on these movements.
+1. Purpose of the Algorithm
+This algorithm aims to calculate the service time, delivery cost, and estimated profit for each worker and order pair. It uses an iterative process to evaluate the worker's distance to the pickup and delivery locations, calculates travel times, waiting times, and service-related costs, and then determines the total service time and cost for each worker-order pair.
 2. Steps in the Algorithm
-1. Initialize Service Time and Cost:
-Initialize the estimated service time (esj,k) and delivery cost (ecj,k) to 0 for all orders in J_k.
-2. Construct the Total Workload Set:
- Create an undelivered order set J'_k which includes all pending orders and combine it with the current orders in J_k.
-3. Extract Locations:
- Extract all locations of interest from the orders (pickup and delivery locations) into a list L_k.
-4. Initialize Location Visit Flags:
-Initialize a visit flag (V_l) for each location in L_k to track whether the worker has visited that location.
-5.  Calculate Distances:
-Define the distances between all pairs of locations in L_k.
-6. Initialize Loop Variables:
-Set the worker's current location to lk and initialize a counter c to track the number of locations visited.
-7. Loop Through Locations:
- Continue iterating until all locations in L_k are visited.
-In each iteration, identify the nearest unvisited location l0 and handle either a pickup or delivery for the associated order.
-8. Handle Pickup:
-If the worker is at the pickup location for an order j, update the service time and cost by adding the travel time and other service-related costs.
-9. Handle Delivery:
-If the worker is at the delivery location for an order j and has already visited the pickup location, update the service time and cost similarly.
-10. Update Loop Variables:
-Mark the current location as visited and continue the loop until all locations are visited.
-11. Calculate Total Service Time and Cost:
- After the loop, sum the individual service times (esj,k) and costs (ecj,k) for all orders to get the worker�s total estimated service time (eS_k) and delivery cost (eC_k).
+2.1	Initialize Service Time and Cost:
+Initialize the service time and delivery cost dictionaries for all worker-order pairs.
+2.2	Construct the Workload Set:
+Load the set of orders, workers, locations, and instance parameters from CSV files based on the instance number. Ensure that all files exist before proceeding.
+2.3	Extract Locations:
+Extract the coordinates of pickup and delivery locations for the orders, as well as the current locations of workers, from the location data. Standardize the format of location IDs and scale the coordinates.
+2.4	Initialize Location IDs and Coordinates:
+Standardize and scale the coordinates of all locations to prepare for distance calculation between workers and order locations.
+2.5	Calculate Distances:
+For each worker-order pair, calculate the distance between the worker’s current location and the order’s pickup location, and then between the pickup location and the delivery location using the Haversine formula.
+2.6	Initialize Loop Variables:
+Iterate over each order and worker pair, retrieving the worker's current location, the pickup location, and the delivery location for each order.
+2.7	Loop Through Orders and Workers:
+Continue iterating through each order-worker pair. For each combination, calculate the travel time from the worker’s location to the pickup point, the waiting time at the pickup point, and the travel time from the pickup point to the delivery location.
+2.8	Handle Pickup:
+Calculate the travel time from the worker’s current location to the order’s pickup location (t_p) based on the distance and speed, and include the waiting time (t_w).
+2.9	Handle Delivery:
+Calculate the travel time from the order’s pickup location to the delivery location (t_d) and update the total service time by summing up all travel and waiting times.
+2.10 Update Loop Variables:
+Store the service time (s_ow), delivery cost (c_ow), and estimated profit (p_ow) for each order-worker pair in the corresponding dictionaries.
+2.11 Calculate Total Service Time, Delivery Cost, and Estimated Profit:
+After processing all pairs, calculate the total service time and delivery cost for each order-worker pair. Round the results to 5 decimal places and save the output data into separate CSV files.
 3. Inputs
-- Jk: Set of orders assigned to worker k.
-- Each order includes:
-- Pickup location (lp_j)
-- Delivery location (ld_j)
-- Associated service times and costs.
-- Distance function (d(l, l')): Provides the distance between two locations.
-- Constants:
-- Cet: Represents constants related to estimated times.
-- x: A cost constant, potentially related to fuel or vehicle wear-and-tear.
+•	Orders: Contains order details like pickup and delivery locations, fetch time, and ready time.
+•	Workers: Contains worker details like current locations.
+•	Locations: Contains geographic coordinates for all locations (pickup, delivery, and worker current locations).
+•	Instance Parameters: Includes parameters like mu, m_ow, and speed.
+•	Constants:
+o	mu: Constant for calculating the delivery cost.
+o	m_ow: Estimated delivery profit constant for each order-worker pair.
+o	Speed: Average travel speed of workers.
 4. Outputs
-- eS_k: Total estimated service time for worker k after serving all assigned orders.
-- eC_k: Total estimated delivery cost for worker k based on the distances traveled for all assigned orders.
-
+•	Service Time DataFrame: Contains the total estimated service time for each order-worker pair after calculating travel and waiting times.
+•	Delivery Cost DataFrame: Contains the total delivery cost for each order-worker pair based on the distances traveled.
+•	Estimated Profit DataFrame: Contains the estimated profit for each order-worker pair based on the delivery cost and fixed profit margin (m_ow).
+Summary
+The algorithm processes order, worker, and location data to calculate service times, delivery costs, and estimated profits for each order-worker pair. 
+Using the Haversine formula, it computes distances between locations, converts them into travel times, and adds waiting times at pickup points. 
+The final results, including the total service time, delivery cost, and estimated profit for each pair, are stored in DataFrames and saved as CSV files for further analysis. 
+The process is repeated for multiple instances, making it efficient for handling large-scale order fulfillment scenarios across various workers.
