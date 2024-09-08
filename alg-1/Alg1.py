@@ -17,6 +17,7 @@ def calculate_waiting_time(fetch_time, ready_time):
 def scale_coordinates(value, scale_factor=1e6):
     return value / scale_factor
 
+# Calculate the great-circle distance between two points on the Earth using their latitude and longitude.
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0  # Radius of the Earth in kilometers
     lat1_rad = radians(lat1)
@@ -24,14 +25,16 @@ def haversine(lat1, lon1, lat2, lon2):
     lat2_rad = radians(lat2)
     lon2_rad = radians(lon2)
     
+    # Differences in coordinates
     dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
     
+    # Haversine formula
     a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    distance = R * c
+    distance = R * c 
     
-    return distance
+    return distance # Distance in kilometers
 
 def algorithm_1(folder_path, instance_num):
     orders_file = os.path.join(folder_path, f'orders-{instance_num}.csv').replace("\\", "/")
@@ -79,20 +82,25 @@ def algorithm_1(folder_path, instance_num):
                 worker_coords = locations.loc[locations['location_id'] == worker_location, ['x', 'y']].values[0]
                 pickup_coords = locations.loc[locations['location_id'] == pickup_location, ['x', 'y']].values[0]
                 delivery_coords = locations.loc[locations['location_id'] == delivery_location, ['x', 'y']].values[0]
-
-                d_p = haversine(worker_coords[1], worker_coords[0], pickup_coords[1], pickup_coords[0])
-                d_d = haversine(pickup_coords[1], pickup_coords[0], delivery_coords[1], delivery_coords[0])
-
+                
+                # Calculate distances using the Haversine formula
+                d_p = haversine(worker_coords[1], worker_coords[0], pickup_coords[1], pickup_coords[0]) # Distance from worker to pickup
+                d_d = haversine(pickup_coords[1], pickup_coords[0], delivery_coords[1], delivery_coords[0]) # Distance from pickup to delivery
+                
+                # Calculate times (using the speed parameter to determine travel time)
                 t_p = (d_p / speed) * 60  # Convert hours to minutes
                 t_w = order['waiting_time']  # This is now in minutes
                 t_d = (d_d / speed) * 60  # Convert hours to minutes
 
+                # Calculate service time
                 s_ow = t_p + t_w + t_d
                 service_times[(order_id, worker_id)] = s_ow
 
+                # Calculate delivery cost
                 c_ow = mu * (d_p + d_d)
                 delivery_costs[(order_id, worker_id)] = c_ow
 
+                # Calculate estimated profit
                 p_ow = m_ow - c_ow
                 estimated_profits[(order_id, worker_id)] = p_ow
 
