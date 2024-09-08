@@ -147,7 +147,7 @@ def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
     return service_times_df, delivery_costs_df, estimated_profits_df
 
 # Define the input directories and corresponding instance numbers
-input_folders = ['alg-1/alg1-inputs/instance-01', 'alg-1/alg1-inputs/instance-02', 'alg-1/alg1-inputs/instance-03']
+input_folders = ['alg-1-test/alg1-inputs/instance-01', 'alg-1-test/alg1-inputs/instance-02', 'alg-1-test/alg1-inputs/instance-03']
 instance_numbers = ['01', '02', '03']
 
 # Parameter file suffixes and output folder names
