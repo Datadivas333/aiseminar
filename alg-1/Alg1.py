@@ -8,11 +8,13 @@ def calculate_waiting_time(fetch_time, ready_time):
     fetch_time_dt = datetime.fromtimestamp(fetch_time, timezone.utc)
     ready_time_dt = datetime.fromtimestamp(ready_time, timezone.utc)
 
-    if fetch_time_dt <= ready_time_dt:
-        return 0
+ # If the worker arrives before the order is ready, calculate waiting time
+    if fetch_time_dt < ready_time_dt:
+        waiting_time_seconds = (ready_time_dt - fetch_time_dt).total_seconds()
+        return waiting_time_seconds / 60  # Convert seconds to minutes
     
-    waiting_time_seconds = (fetch_time_dt - ready_time_dt).total_seconds()
-    return waiting_time_seconds / 60  # Convert seconds to minutes
+    # If the worker arrives on or after the order is ready, no waiting time
+    return 0
 
 def scale_coordinates(value, scale_factor=1e6):
     return value / scale_factor

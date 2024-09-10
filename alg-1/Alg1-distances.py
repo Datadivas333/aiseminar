@@ -8,7 +8,7 @@ def calculate_waiting_time(fetch_time, ready_time):
     fetch_time_dt = datetime.fromtimestamp(fetch_time, timezone.utc)
     ready_time_dt = datetime.fromtimestamp(ready_time, timezone.utc)
 
-  # If the worker arrives before the order is ready, calculate waiting time
+ # If the worker arrives before the order is ready, calculate waiting time
     if fetch_time_dt < ready_time_dt:
         waiting_time_seconds = (ready_time_dt - fetch_time_dt).total_seconds()
         return waiting_time_seconds / 60  # Convert seconds to minutes
@@ -38,11 +38,11 @@ def haversine(lat1, lon1, lat2, lon2):
     
     return distance # Distance in kilometers
 
-def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
+def algorithm_1(folder_path, instance_num):
     orders_file = os.path.join(folder_path, f'orders-{instance_num}.csv').replace("\\", "/")
     workers_file = os.path.join(folder_path, f'workers-{instance_num}.csv').replace("\\", "/")
     locations_file = os.path.join(folder_path, f'locations-{instance_num}.csv').replace("\\", "/")
-    instance_params_file = os.path.join(folder_path, f'parameters-{instance_num}{param_file_suffix}.csv').replace("\\", "/")
+    instance_params_file = os.path.join(folder_path, f'parameters-{instance_num}.csv').replace("\\", "/")
 
     for file_path in [orders_file, workers_file, locations_file, instance_params_file]:
         if not os.path.exists(file_path):
@@ -71,9 +71,13 @@ def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
     delivery_costs = {}
     estimated_profits = {}
     
+    # dictionaries to store t_p, t_d, t_w
     pickup_times = {}
     delivery_times = {}
     waiting_times = {}
+
+    # New dictionary to store distances (d_p, d_d)
+    distances = {}
 
     for _, order in orders.iterrows():
         order_id = order['order_id']
@@ -93,6 +97,9 @@ def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
                 d_p = haversine(worker_coords[1], worker_coords[0], pickup_coords[1], pickup_coords[0]) # Distance from worker to pickup
                 d_d = haversine(pickup_coords[1], pickup_coords[0], delivery_coords[1], delivery_coords[0]) # Distance from pickup to delivery
                 
+                # Store the distances for this worker-order pair
+                distances[(order_id, worker_id)] = {'d_p': d_p, 'd_d': d_d}
+
                 # Calculate times (using the speed parameter to determine travel time)
                 t_p = (d_p / speed) * 60  # Convert hours to minutes
                 t_w = order['waiting_time']  # This is now in minutes
@@ -123,14 +130,22 @@ def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
     delivery_costs_df = pd.DataFrame.from_dict(delivery_costs, orient='index', columns=['delivery_cost'])
     estimated_profits_df = pd.DataFrame.from_dict(estimated_profits, orient='index', columns=['estimated_profit'])
     
+    # Convert distances dictionary to DataFrame
+    distances_df = pd.DataFrame.from_dict(distances, orient='index')
+    distances_df['order_id'] = distances_df.index.map(lambda x: x[0])
+    distances_df['worker_id'] = distances_df.index.map(lambda x: x[1]) 
+
+    # DataFrames for t_p, t_d, t_w
     pickup_times_df = pd.DataFrame.from_dict(pickup_times, orient='index', columns=['t_p'])
     delivery_times_df = pd.DataFrame.from_dict(delivery_times, orient='index', columns=['t_d'])
     waiting_times_df = pd.DataFrame.from_dict(waiting_times, orient='index', columns=['t_w'])
 
+    # Adding order_id and worker_id columns for merging
     for df in [service_times_df, delivery_costs_df, estimated_profits_df, pickup_times_df, delivery_times_df, waiting_times_df]:
         df['order_id'] = df.index.map(lambda x: x[0])
         df['worker_id'] = df.index.map(lambda x: x[1])
 
+    # Rounding values for readability
     service_times_df['service_time'] = service_times_df['service_time'].round(5)
     delivery_costs_df['delivery_cost'] = delivery_costs_df['delivery_cost'].round(5)
     estimated_profits_df['estimated_profit'] = estimated_profits_df['estimated_profit'].round(5)
@@ -138,6 +153,7 @@ def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
     delivery_times_df['t_d'] = delivery_times_df['t_d'].round(5)
     waiting_times_df['t_w'] = waiting_times_df['t_w'].round(5)
 
+    # Merge the data into the service_times_df
     service_times_df = service_times_df.merge(pickup_times_df, on=['order_id', 'worker_id'], how='left')
     service_times_df = service_times_df.merge(delivery_times_df, on=['order_id', 'worker_id'], how='left')
     service_times_df = service_times_df.merge(waiting_times_df, on=['order_id', 'worker_id'], how='left')
@@ -146,34 +162,31 @@ def algorithm_1(folder_path, instance_num, param_file_suffix, param_set_num):
     delivery_costs_df = delivery_costs_df[['order_id', 'worker_id', 'delivery_cost']]
     estimated_profits_df = estimated_profits_df[['order_id', 'worker_id', 'estimated_profit']]
 
-    return service_times_df, delivery_costs_df, estimated_profits_df
+    return service_times_df, delivery_costs_df, estimated_profits_df, distances_df
 
 # Define the input directories and corresponding instance numbers
-input_folders = ['alg-1-test/alg1-inputs/instance-01', 'alg-1-test/alg1-inputs/instance-02', 'alg-1-test/alg1-inputs/instance-03']
+input_folders = ['alg-1/alg1-inputs/instance-01', 'alg-1/alg1-inputs/instance-02', 'alg-1/alg1-inputs/instance-03']
 instance_numbers = ['01', '02', '03']
 
-# Parameter file suffixes and output folder names
-param_file_suffixes = ['', '.2']  # First parameter file has no suffix, second has '.2'
-output_folder_names = ['folder-01', 'folder-02']
-
-# Iterate over each input folder and run the algorithm for each instance and each parameter set
+# Iterate over each input folder and run the algorithm for each instance
 for folder, instance_num in zip(input_folders, instance_numbers):
-    for param_suffix, output_folder in zip(param_file_suffixes, output_folder_names):
-        try:
-            service_times_df, delivery_costs_df, estimated_profits_df = algorithm_1(folder, instance_num, param_suffix, output_folder)
+    try:
+        service_times_df, delivery_costs_df, estimated_profits_df, distances_df = algorithm_1(folder, instance_num)
 
-            # Create the output directory structure
-            output_dir = os.path.join(folder.replace("inputs", "outputs"), output_folder)
+        output_dir = folder.replace("inputs", "outputs")
 
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-            # Save the CSV files in the corresponding output folder
-            service_times_df.to_csv(os.path.join(output_dir, f'service-times-{instance_num}.csv'), index=False)
-            delivery_costs_df.to_csv(os.path.join(output_dir, f'delivery-costs-{instance_num}.csv'), index=False)
-            estimated_profits_df.to_csv(os.path.join(output_dir, f'estimated-profits-{instance_num}.csv'), index=False)
+        # Save output data
+        service_times_df.to_csv(os.path.join(output_dir, f'service-times-{instance_num}.csv'), index=False)
+        delivery_costs_df.to_csv(os.path.join(output_dir, f'delivery-costs-{instance_num}.csv'), index=False)
+        estimated_profits_df.to_csv(os.path.join(output_dir, f'estimated-profits-{instance_num}.csv'), index=False)
 
-            print(f"Instance {instance_num} with {param_suffix or 'first'} parameters processed and results saved to {output_dir}.")
+         # Save distances data
+        distances_df.to_csv(os.path.join(output_dir, f'distances-{instance_num}.csv'), index=False)
 
-        except FileNotFoundError as e:
-            print(e)
+        print(f"Instance {instance_num} processed and results saved to {output_dir}.")
+
+    except FileNotFoundError as e:
+        print(e)
