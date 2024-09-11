@@ -7,8 +7,8 @@ input_base_dir = 'Naive/input'
 output_base_dir = 'Naive/output'
 instance_numbers = ['01', '02', '03']  # Define the instances
 
-# Function to implement a random assignment method
-def random_assignment(instance_number, orders_file, workers_file, service_times_file, delivery_costs_file, estimated_profits_file):
+# Function to implement a one-to-one random assignment method
+def random_assignment_one_to_one(instance_number, orders_file, workers_file, service_times_file, delivery_costs_file, estimated_profits_file):
     try:
         # Load the orders, workers, service times, delivery costs, and estimated profits data
         orders_df = pd.read_csv(orders_file)
@@ -21,21 +21,28 @@ def random_assignment(instance_number, orders_file, workers_file, service_times_
         orders = orders_df['order_id'].tolist()
         workers = workers_df['worker_id'].tolist()
 
-        # Randomly assign workers to orders
+        # Check if the number of orders and workers are equal for a one-to-one assignment
+        if len(orders) != len(workers):
+            print(f"Error: The number of orders ({len(orders)}) and workers ({len(workers)}) must be equal for a one-to-one assignment.")
+            return
+
+        # Shuffle the workers list to ensure random assignments
+        random.shuffle(workers)
+
+        # Assign each worker to exactly one order (one-to-one mapping)
         random_assignments = []
-        for order in orders:
-            assigned_worker = random.choice(workers)  # Randomly assign a worker
-            # Get corresponding service time, delivery cost, and estimated profit from data
+        for order, worker in zip(orders, workers):
+            # Get corresponding service time, delivery cost, and estimated profit
             service_time = random.uniform(30, 60)  # Example random service time
             delivery_cost = random.uniform(3, 7)  # Example random delivery cost
             random_assignments.append({
                 'order_id': order,
-                'worker_id': assigned_worker,
+                'worker_id': worker,
                 'service_time': service_time,
                 'delivery_cost': delivery_cost
             })
 
-        # Convert to DataFrame with the same structure as your greedy assignments
+        # Convert to DataFrame with the same structure as your other assignments
         random_assignments_df = pd.DataFrame(random_assignments)
 
         # Calculate and print summary statistics
@@ -55,9 +62,9 @@ def random_assignment(instance_number, orders_file, workers_file, service_times_
     except Exception as e:
         print(f"An unexpected error occurred in instance {instance_number}: {e}")
 
-# Loop over each instance and run the random assignment method
+# Loop over each instance and run the random one-to-one assignment method
 for instance_number in instance_numbers:
-    print(f"Processing Instance {instance_number} with Random Assignment...")
+    print(f"Processing Instance {instance_number} with Random One-to-One Assignment...")
 
     # Define file paths for the current instance
     instance_input_dir = os.path.join(input_base_dir, f'instance-{instance_number}')
@@ -68,4 +75,4 @@ for instance_number in instance_numbers:
     estimated_profits_file = os.path.join(instance_input_dir, f'estimated-profits-{instance_number}.csv')
 
     # Run the random assignment method for this instance
-    random_assignment(instance_number, orders_file, workers_file, service_times_file, delivery_costs_file, estimated_profits_file)
+    random_assignment_one_to_one(instance_number, orders_file, workers_file, service_times_file, delivery_costs_file, estimated_profits_file)
