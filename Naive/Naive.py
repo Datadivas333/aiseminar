@@ -3,8 +3,8 @@ import pandas as pd
 import random
 
 # Define base directories for inputs and outputs
-input_base_dir = '/aiseminar/Naive/input'
-output_base_dir = '/aiseminar/Naive/output'
+input_base_dir = 'Naive/input'
+output_base_dir = 'Naive/output'
 instance_numbers = ['01', '02', '03']  # Define the instances
 
 # Function to implement a random assignment method
