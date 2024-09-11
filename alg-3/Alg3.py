@@ -34,8 +34,8 @@ for instance_num in instance_numbers:
     print("CSV files loaded successfully.")
 
     # Create the list of worker IDs and order IDs
-    J = orders_df['order_id'].tolist()  # Order IDs
-    K = workers_df['worker_id'].tolist()  # Worker IDs
+    O = orders_df['order_id'].tolist()  # Order IDs
+    W = workers_df['worker_id'].tolist()  # Worker IDs
 
     # Convert DataFrames to Dictionaries
     print("Converting DataFrames to dictionaries...")
@@ -51,14 +51,14 @@ for instance_num in instance_numbers:
     num_orders = len(orders_df)
 
     # Function to initialize population ensuring one-to-one assignment
-    def initialize_population(J, K, initial_solutions_df_cleaned, num_orders):
+    def initialize_population(O, W, initial_solutions_df_cleaned, num_orders):
         initial_solutions = []
         for i in range(0, len(initial_solutions_df_cleaned), num_orders):
             solution = {}
             chunk = initial_solutions_df_cleaned.iloc[i:i + num_orders]
             for _, row in chunk.iterrows():
                 order_id = int(row['order_id'])
-                for worker_id in K:
+                for worker_id in W:
                     if int(row[str(worker_id)]) == 1:
                         solution[order_id] = worker_id
                         break  # Ensure only one worker per order
@@ -66,81 +66,81 @@ for instance_num in instance_numbers:
         return initial_solutions
 
     # Define the fitness function
-    def fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
+    def fitness_function(X, service_times, costs, estimated_profits, s_max, q_w):
         total_profit = 0
         total_service_time = 0
-        order_count = {k: 0 for k in q_k}
+        order_count = {worker: 0 for worker in q_w}
 
-        for j, worker in X.items():
+        for o, worker in X.items():
             order_count[worker] += 1
-            if order_count[worker] > q_k[worker]:
+            if order_count[worker] > q_w[worker]:
                 return -1
 
-            s_jk = service_times[(j, worker)]
-            p_jk = estimated_profits[(j, worker)]
-            total_profit += p_jk
-            total_service_time += s_jk
+            s_ow = service_times[(o, worker)]
+            p_ow = estimated_profits[(o, worker)]
+            total_profit += p_ow
+            total_service_time += s_ow
 
-            if s_jk > s_max:
+            if s_ow > s_max:
                 return -1
 
-        s_k = total_service_time / (len(X) * s_max)
-        p_k = total_profit / len(X)
+        s_w = total_service_time / (len(X) * s_max)
+        p_w = total_profit / len(X)
 
-        if s_k > 1 or p_k < 0:
+        if s_w > 1 or p_w < 0:
             return -1
 
-        return p_k - s_k
+        return p_w - s_w
 
     # Updated λX calculation to ensure it's at least 1
     def calculate_lambda_X(X, P, lambda_max):
-        sum_f_X_prime = sum(fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) for X_prime in P)
-        f_X = fitness_function(X, service_times, costs, estimated_profits, s_max, q_k)
+        sum_f_X_prime = sum(fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_w) for X_prime in P)
+        f_X = fitness_function(X, service_times, costs, estimated_profits, s_max, q_w)
         if sum_f_X_prime == 0:
             return lambda_max  # Avoid division by zero
         lambda_X = lambda_max * (sum_f_X_prime - f_X) / sum_f_X_prime
         return max(1, lambda_X)  # Ensure λX is at least 1
 
     # Ensure one-to-one assignment during propagation
-    def propagate_solution(X, J, K):
+    def propagate_solution(X, O, W):
         X_prime = copy.deepcopy(X)
-        j = random.choice(J)
-        current_worker = X_prime[j]
-        available_workers = [k for k in K if k != current_worker]
+        selected_order = random.choice(O)  # Changed variable name to avoid reassignment of O
+        current_worker = X_prime[selected_order]
+        available_workers = [worker for worker in W if worker != current_worker]
 
         if available_workers:
             new_worker = random.choice(available_workers)
-            X_prime[j] = new_worker
+            X_prime[selected_order] = new_worker
 
         return X_prime
 
     # Define the Water Wave Optimization algorithm
-    def water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, P, lambda_max, max_iter=100):
+    def water_wave_optimization(O, W, s_max, q_w, service_times, costs, estimated_profits, P, lambda_max, max_iter=100):
         print("Starting the Water Wave Optimization...")
-        X_star = max(P, key=lambda X: fitness_function(X, service_times, costs, estimated_profits, s_max, q_k))
+        X_star = max(P, key=lambda X: fitness_function(X, service_times, costs, estimated_profits, s_max, q_w))
         iter = 0
         while iter <= max_iter:
             for X in P:
                 lambda_X = calculate_lambda_X(X, P, lambda_max)
-                W = random.randint(1, int(lambda_X))
+                W_iter = random.randint(1, int(lambda_X))  # Changed variable name to avoid collision with W
 
                 X_prime = copy.deepcopy(X)
-                for _ in range(W):
-                    X_prime = propagate_solution(X_prime, J, K)
+                for _ in range(W_iter):
+                    X_prime = propagate_solution(X_prime, O, W)
 
-                if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X, service_times, costs, estimated_profits, s_max, q_k):
+                if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_w) > fitness_function(X, service_times, costs, estimated_profits, s_max, q_w):
                     P.remove(X)
                     P.append(X_prime)
 
-                    if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_k):
+                    if fitness_function(X_prime, service_times, costs, estimated_profits, s_max, q_w) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_w):
                         X_star = X_prime
 
-                nb = random.randint(1, len(K))
+                nb = random.randint(1, len(W))
                 for _ in range(nb):
                     X_n = copy.deepcopy(X_star)
-                    X_n = propagate_solution(X_n, J, K)
+                    X_n = propagate_solution(X_n, O, W)
 
-                    if fitness_function(X_n, service_times, costs, estimated_profits, s_max, q_k) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_k):
+                    if fitness_function(X_n, service_times, costs, estimated_profits, s_max, q_w) > fitness_function(X_star, service_times, costs, estimated_profits, s_max, q_w):
                         X_star = X_n
 
             iter += 1
@@ -148,26 +148,26 @@ for instance_num in instance_numbers:
         return X_star
 
     # Initialize population with the corrected method
-    initial_solutions = initialize_population(J, K, initial_solutions_df_cleaned, num_orders)
+    initial_solutions = initialize_population(O, W, initial_solutions_df_cleaned, num_orders)
 
     # Example usage
     s_max = 15  # Example value, adjust as necessary
-    q_k = {worker_id: 1 for worker_id in K}  # Worker capacity set to 1 for all workers
-    lambda_max = len(J)  # Maximum allowable wavelength
+    q_w = {worker_id: 1 for worker_id in W}  # Worker capacity set to 1 for all workers
+    lambda_max = len(O)  # Maximum allowable wavelength
 
     # Run the Water Wave Optimization algorithm using the loaded data
-    X_star = water_wave_optimization(J, K, s_max, q_k, service_times, costs, estimated_profits, initial_solutions, lambda_max)
+    X_star = water_wave_optimization(O, W, s_max, q_w, service_times, costs, estimated_profits, initial_solutions, lambda_max)
 
     # Convert the result to a DataFrame with additional metrics
     output_rows = []
-    for j, k in X_star.items():
-        service_time = service_times[(j, k)]
-        delivery_cost = costs[(j, k)]
-        estimated_profit = estimated_profits[(j, k)]
+    for o, w in X_star.items():
+        service_time = service_times[(o, w)]
+        delivery_cost = costs[(o, w)]
+        estimated_profit = estimated_profits[(o, w)]
 
         output_rows.append({
-            "order_id": j,
-            "worker_id": k,
+            "order_id": o,
+            "worker_id": w,
             "service_time": service_time,
             "delivery_cost": delivery_cost,
             "estimated_profit": estimated_profit
