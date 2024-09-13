@@ -5,14 +5,17 @@ import matplotlib.pyplot as plt
 # Base directory for instances
 base_dir = "/workspaces/aiseminar/Evaluation"
 instances = ["instance 1", "instance 2", "instance 3"]
-greedy_files = ["greedy_assignments 1.csv", "greedy_assignments 2.csv", "greedy_assignments 3.csv"]
-optimal_files = ["optimal_assignment_with_metrics 1.csv", "optimal_assignment_with_metrics 2.csv", "optimal_assignment_with_metrics 3.csv"]
+greedy_files = ["greedy_assignments-01.csv", "greedy_assignments-02.csv", "greedy_assignments-03.csv"]
+optimal_files = ["optimal_assignment_01.csv", "optimal_assignment_02.csv", "optimal_assignment_03.csv"]
+random_files = ["random_assignments_01.csv", "random_assignments_02.csv", "random_assignments_03.csv"]
 
 # Initialize lists to store mean values
 mean_service_time_greedy = []
 mean_service_time_optimal = []
+mean_service_time_random = []
 mean_estimated_profit_greedy = []
 mean_estimated_profit_optimal = []
+mean_estimated_profit_random = []
 
 # Lists for writing results to CSV
 results = []
@@ -20,47 +23,94 @@ results = []
 # Number of orders per instance
 number_of_orders = [20, 40, 60]  # Orders for each instance
 
+# Lists to track valid orders for plotting random data
+valid_orders_for_random = []
+
 # Iterate over each instance
 for i in range(len(instances)):
     # Paths for each file
     greedy_file_path = os.path.join(base_dir, instances[i], greedy_files[i])
     optimal_file_path = os.path.join(base_dir, instances[i], optimal_files[i])
+    random_file_path = os.path.join(base_dir, instances[i], random_files[i])
     
     try:
         # Read CSV files
         greedy_df = pd.read_csv(greedy_file_path)
         optimal_df = pd.read_csv(optimal_file_path)
         
+        # Try reading the random file, and if not found, handle it
+        try:
+            random_df = pd.read_csv(random_file_path)
+            random_available = True
+        except FileNotFoundError:
+            print(f"File not found: {random_file_path}")
+            random_available = False
+        
         # Calculate statistics
+        service_time_stats = f"Greedy: {greedy_df['service_time'].mean():.2f} / Optimal: {optimal_df['service_time'].mean():.2f}"
+        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].mean():.2f} / Optimal: {optimal_df['estimated_profit'].mean():.2f}"
+        
+        if random_available:
+            service_time_stats += f" / Random: {random_df['service_time'].mean():.2f}"
+            estimated_profit_stats += f" / Random: {random_df['estimated_profit'].mean():.2f}"
+            valid_orders_for_random.append(number_of_orders[i])  # Track valid number of orders for random
+        
         stats = {
             'Instance': f'instance {i + 1}',
             'Metric': 'Mean',
-            'Service Time': f"Greedy: {greedy_df['service_time'].mean():.2f} / Optimal: {optimal_df['service_time'].mean():.2f}",
-            'Estimated Profit': f"Greedy: {greedy_df['estimated_profit'].mean():.2f} / Optimal: {optimal_df['estimated_profit'].mean():.2f}"
+            'Service Time': service_time_stats,
+            'Estimated Profit': estimated_profit_stats
         }
         results.append(stats)
+        
+        # Max and Min calculations
+        service_time_stats = f"Greedy: {greedy_df['service_time'].max():.2f} / Optimal: {optimal_df['service_time'].max():.2f}"
+        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].max():.2f} / Optimal: {optimal_df['estimated_profit'].max():.2f}"
+        
+        if random_available:
+            service_time_stats += f" / Random: {random_df['service_time'].max():.2f}"
+            estimated_profit_stats += f" / Random: {random_df['estimated_profit'].max():.2f}"
         
         stats = {
             'Instance': f'instance {i + 1}',
             'Metric': 'Max',
-            'Service Time': f"Greedy: {greedy_df['service_time'].max():.2f} / Optimal: {optimal_df['service_time'].max():.2f}",
-            'Estimated Profit': f"Greedy: {greedy_df['estimated_profit'].max():.2f} / Optimal: {optimal_df['estimated_profit'].max():.2f}"
+            'Service Time': service_time_stats,
+            'Estimated Profit': estimated_profit_stats
         }
         results.append(stats)
+        
+        # Min statistics
+        service_time_stats = f"Greedy: {greedy_df['service_time'].min():.2f} / Optimal: {optimal_df['service_time'].min():.2f}"
+        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].min():.2f} / Optimal: {optimal_df['estimated_profit'].min():.2f}"
+        
+        if random_available:
+            service_time_stats += f" / Random: {random_df['service_time'].min():.2f}"
+            estimated_profit_stats += f" / Random: {random_df['estimated_profit'].min():.2f}"
         
         stats = {
             'Instance': f'instance {i + 1}',
             'Metric': 'Min',
-            'Service Time': f"Greedy: {greedy_df['service_time'].min():.2f} / Optimal: {optimal_df['service_time'].min():.2f}",
-            'Estimated Profit': f"Greedy: {greedy_df['estimated_profit'].min():.2f} / Optimal: {optimal_df['estimated_profit'].min():.2f}"
+            'Service Time': service_time_stats,
+            'Estimated Profit': estimated_profit_stats
         }
         results.append(stats)
 
         # Append means for plotting
         mean_service_time_greedy.append(greedy_df['service_time'].mean())
         mean_service_time_optimal.append(optimal_df['service_time'].mean())
+        
+        if random_available:
+            mean_service_time_random.append(random_df['service_time'].mean())
+        else:
+            mean_service_time_random.append(None)  # Use None for missing values
+        
         mean_estimated_profit_greedy.append(greedy_df['estimated_profit'].mean())
         mean_estimated_profit_optimal.append(optimal_df['estimated_profit'].mean())
+        
+        if random_available:
+            mean_estimated_profit_random.append(random_df['estimated_profit'].mean())
+        else:
+            mean_estimated_profit_random.append(None)  # Use None for missing values
         
     except FileNotFoundError as e:
         print(f"File not found: {e.filename}")
@@ -71,13 +121,22 @@ results_df = pd.DataFrame(results)
 results_df.to_csv(output_csv_path, index=False)
 print(f"Overall results saved to {output_csv_path}")
 
+# Filter out None values for random assignments and their corresponding orders
+valid_mean_service_time_random = [val for val in mean_service_time_random if val is not None]
+valid_mean_estimated_profit_random = [val for val in mean_estimated_profit_random if val is not None]
+
 # Plotting graphs
-plt.figure(figsize=(10, 5))
+plt.figure(figsize=(15, 5))
 
 # Graph 1: Mean Service Time
 plt.subplot(1, 2, 1)
 plt.plot(number_of_orders, mean_service_time_greedy, marker='s', color='black', label='Greedy Assignments')
 plt.plot(number_of_orders, mean_service_time_optimal, marker='o', color='red', label='Optimal Assignments')
+
+# Only plot Random if there are valid data points
+if valid_mean_service_time_random:
+    plt.plot(valid_orders_for_random, valid_mean_service_time_random, marker='^', color='green', label='Random Assignments')
+
 plt.xlabel('Number of Orders')
 plt.ylabel('Mean Service Time')
 plt.title('Mean Service Time vs Number of Orders')
@@ -87,17 +146,21 @@ plt.legend()
 plt.subplot(1, 2, 2)
 plt.plot(number_of_orders, mean_estimated_profit_greedy, marker='s', color='black', label='Greedy Assignments')
 plt.plot(number_of_orders, mean_estimated_profit_optimal, marker='o', color='red', label='Optimal Assignments')
+
+# Only plot Random if there are valid data points
+if valid_mean_estimated_profit_random:
+    plt.plot(valid_orders_for_random, valid_mean_estimated_profit_random, marker='^', color='green', label='Random Assignments')
+
 plt.xlabel('Number of Orders')
 plt.ylabel('Mean Estimated Profit')
 plt.title('Mean Estimated Profit vs Number of Orders')
 plt.legend()
 
-
-
 # Save both graphs in a single file
-combined_graph_path = os.path.join(base_dir, "combined_graphs.png")
+graph_path = os.path.join(base_dir, "graphs.png")
 plt.tight_layout()
-plt.savefig(combined_graph_path)
+plt.savefig(graph_path)
 plt.show()
 
-print(f"Combined graphs saved to {combined_graph_path}")
+print(f"Combined graphs saved to {graph_path}")
+
