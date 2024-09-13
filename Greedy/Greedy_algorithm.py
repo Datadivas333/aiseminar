@@ -1,24 +1,23 @@
 import pandas as pd
 import os
 
-# Get the directory where this script is located
-script_dir = os.path.dirname(os.path.abspath(__file__))
-print(f"Script directory: {script_dir}")
+# Define base directories for inputs and outputs
+input_base_dir = 'Greedy/input'
+output_base_dir = 'Greedy/output'
+instance_numbers = ['01', '02', '03']  # Define the instances
 
-# Load the CSV files from the directory where the script is located
-service_times_df = pd.read_csv(os.path.join(script_dir, 'service-times-01.csv'))
-estimated_profits_df = pd.read_csv(os.path.join(script_dir, 'estimated-profits-01.csv'))
-delivery_costs_df = pd.read_csv(os.path.join(script_dir, 'delivery-costs-01.csv'))
-workers_df = pd.read_csv(os.path.join(script_dir, 'workers-01.csv'))
-orders_df = pd.read_csv(os.path.join(script_dir, 'orders-01.csv'))
+# Function to run the Greedy Assignment Algorithm
+def greedy_assignment(instance_number, service_times_file, estimated_profits_file, delivery_costs_file, workers_file, orders_file):
+    # Load the service times, estimated profits, delivery costs, workers, and orders data
+    service_times_df = pd.read_csv(service_times_file)
+    estimated_profits_df = pd.read_csv(estimated_profits_file)
+    delivery_costs_df = pd.read_csv(delivery_costs_file)
+    workers_df = pd.read_csv(workers_file)
+    orders_df = pd.read_csv(orders_file)
 
-# Combine the metrics into a single DataFrame for easy processing
-combined_df = service_times_df.merge(estimated_profits_df, on=['order_id', 'worker_id']).merge(delivery_costs_df,
-                                                                                               on=['order_id',
-                                                                                                   'worker_id'])
+    # Combine the metrics into a single DataFrame for easy processing
+    combined_df = service_times_df.merge(estimated_profits_df, on=['order_id', 'worker_id']).merge(delivery_costs_df, on=['order_id', 'worker_id'])
 
-# Greedy Assignment Algorithm
-def greedy_assignment(combined_df, workers_df, orders_df):
     # Standardize worker locations
     workers_df['current_location'] = workers_df['current_location'].str.strip().str.upper()
 
@@ -63,14 +62,26 @@ def greedy_assignment(combined_df, workers_df, orders_df):
     # Convert assignments to DataFrame for output
     assignments_df = pd.DataFrame(assignments)
 
+    # Save the results to a CSV file in the output folder for this instance
+    output_dir = os.path.join(output_base_dir, f'instance-{instance_number}')
+    os.makedirs(output_dir, exist_ok=True)  # Create the output directory if it doesn't exist
+    output_file = os.path.join(output_dir, f'greedy_assignments_{instance_number}.csv')
+    assignments_df.to_csv(output_file, index=False)
+
+    print(f"Greedy assignments for instance {instance_number} saved to {output_file}")
     return assignments_df
 
-# Run the greedy assignment process
-assignments_df = greedy_assignment(combined_df, workers_df, orders_df)
+# Loop over each instance and run the greedy assignment process
+for instance_number in instance_numbers:
+    print(f"Processing instance {instance_number} with Greedy Assignment...")
 
-# Save the results to a CSV file in the same directory as the script
-output_file = os.path.join(script_dir, 'greedy_assignments.csv')
-assignments_df.to_csv(output_file, index=False)
+    # Define file paths for the current instance
+    instance_input_dir = os.path.join(input_base_dir, f'instance-{instance_number}')
+    service_times_file = os.path.join(instance_input_dir, f'service-times-{instance_number}.csv')
+    estimated_profits_file = os.path.join(instance_input_dir, f'estimated-profits-{instance_number}.csv')
+    delivery_costs_file = os.path.join(instance_input_dir, f'delivery-costs-{instance_number}.csv')
+    workers_file = os.path.join(instance_input_dir, f'workers-{instance_number}.csv')
+    orders_file = os.path.join(instance_input_dir, f'orders-{instance_number}.csv')
 
-# Output a few rows for quick review
-print(assignments_df.head())
+    # Run the greedy assignment method for this instance
+    greedy_assignment(instance_number, service_times_file, estimated_profits_file, delivery_costs_file, workers_file, orders_file)
