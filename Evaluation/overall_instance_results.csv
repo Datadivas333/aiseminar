@@ -1,0 +1,10 @@
+Instance,Metric,Service Time,Estimated Profit
+instance 1,Mean,Greedy: 30.36 / WWO: 31.32 / Random: 32.12,Greedy: 11.31 / WWO: 11.09 / Random: 10.90
+instance 1,Max,Greedy: 70.69 / WWO: 74.14 / Random: 69.17,Greedy: 14.28 / WWO: 13.64 / Random: 14.21
+instance 1,Min,Greedy: 13.32 / WWO: 17.48 / Random: 14.92,Greedy: 8.79 / WWO: 9.01 / Random: 8.16
+instance 2,Mean,Greedy: 30.08 / WWO: 30.55 / Random: 36.68,Greedy: 10.92 / WWO: 10.82 / Random: 9.39
+instance 2,Max,Greedy: 52.97 / WWO: 53.82 / Random: 63.88,Greedy: 14.45 / WWO: 14.11 / Random: 14.14
+instance 2,Min,Greedy: 13.55 / WWO: 15.04 / Random: 16.38,Greedy: 7.59 / WWO: 7.47 / Random: 3.18
+instance 3,Mean,Greedy: 32.34 / WWO: 33.38 / Random: 37.75,Greedy: 10.49 / WWO: 10.25 / Random: 9.23
+instance 3,Max,Greedy: 101.03 / WWO: 102.43 / Random: 105.12,Greedy: 14.64 / WWO: 14.23 / Random: 14.64
+instance 3,Min,Greedy: 10.54 / WWO: 8.79 / Random: 12.30,Greedy: -5.42 / WWO: -5.75 / Random: -6.37
