@@ -125,6 +125,9 @@ print(f"Overall results saved to {output_csv_path}")
 valid_mean_service_time_random = [val for val in mean_service_time_random if val is not None]
 valid_mean_estimated_profit_random = [val for val in mean_estimated_profit_random if val is not None]
 
+# Set font to 'DejaVu Serif' (fallback font)
+plt.rcParams['font.family'] = 'DejaVu Serif'
+
 # Plotting graphs
 plt.figure(figsize=(15, 5))
 
@@ -137,10 +140,15 @@ plt.plot(number_of_orders, mean_service_time_optimal, marker='o', color='red', l
 if valid_mean_service_time_random:
     plt.plot(valid_orders_for_random, valid_mean_service_time_random, marker='^', color='green', label='Random Assignments')
 
-plt.xlabel('Number of Orders')
-plt.ylabel('Mean Service Time')
-plt.title('Mean Service Time vs Number of Orders')
-plt.legend()
+# Set larger font sizes for the labels, title, and legend
+plt.xlabel('Number of Orders', fontsize=18)
+plt.ylabel('Mean Service Time', fontsize=18)
+plt.title('Mean Service Time vs Number of Orders', fontsize=20)
+plt.legend(fontsize=13)
+
+# Increase tick label size for both x and y axis
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 
 # Graph 2: Mean Estimated Profit
 plt.subplot(1, 2, 2)
@@ -151,10 +159,15 @@ plt.plot(number_of_orders, mean_estimated_profit_optimal, marker='o', color='red
 if valid_mean_estimated_profit_random:
     plt.plot(valid_orders_for_random, valid_mean_estimated_profit_random, marker='^', color='green', label='Random Assignments')
 
-plt.xlabel('Number of Orders')
-plt.ylabel('Mean Estimated Profit')
-plt.title('Mean Estimated Profit vs Number of Orders')
-plt.legend()
+# Set larger font sizes for the labels, title, and legend
+plt.xlabel('Number of Orders', fontsize=18)
+plt.ylabel('Mean Estimated Profit', fontsize=18)
+plt.title('Mean Estimated Profit vs Number of Orders', fontsize=20)
+plt.legend(fontsize=13)
+
+# Increase tick label size for both x and y axis
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 
 # Save both graphs in a single file
 graph_path = os.path.join(base_dir, "graphs.png")
@@ -163,4 +176,3 @@ plt.savefig(graph_path)
 plt.show()
 
 print(f"Combined graphs saved to {graph_path}")
-
