@@ -47,8 +47,8 @@ for i in range(len(instances)):
             random_available = False
         
         # Calculate statistics
-        service_time_stats = f"Greedy: {greedy_df['service_time'].mean():.2f} / Optimal: {optimal_df['service_time'].mean():.2f}"
-        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].mean():.2f} / Optimal: {optimal_df['estimated_profit'].mean():.2f}"
+        service_time_stats = f"Greedy: {greedy_df['service_time'].mean():.2f} / WWO: {optimal_df['service_time'].mean():.2f}"
+        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].mean():.2f} / WWO: {optimal_df['estimated_profit'].mean():.2f}"
         
         if random_available:
             service_time_stats += f" / Random: {random_df['service_time'].mean():.2f}"
@@ -64,8 +64,8 @@ for i in range(len(instances)):
         results.append(stats)
         
         # Max and Min calculations
-        service_time_stats = f"Greedy: {greedy_df['service_time'].max():.2f} / Optimal: {optimal_df['service_time'].max():.2f}"
-        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].max():.2f} / Optimal: {optimal_df['estimated_profit'].max():.2f}"
+        service_time_stats = f"Greedy: {greedy_df['service_time'].max():.2f} / WWO: {optimal_df['service_time'].max():.2f}"
+        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].max():.2f} / WWO: {optimal_df['estimated_profit'].max():.2f}"
         
         if random_available:
             service_time_stats += f" / Random: {random_df['service_time'].max():.2f}"
@@ -80,8 +80,8 @@ for i in range(len(instances)):
         results.append(stats)
         
         # Min statistics
-        service_time_stats = f"Greedy: {greedy_df['service_time'].min():.2f} / Optimal: {optimal_df['service_time'].min():.2f}"
-        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].min():.2f} / Optimal: {optimal_df['estimated_profit'].min():.2f}"
+        service_time_stats = f"Greedy: {greedy_df['service_time'].min():.2f} / WWO: {optimal_df['service_time'].min():.2f}"
+        estimated_profit_stats = f"Greedy: {greedy_df['estimated_profit'].min():.2f} / WWO: {optimal_df['estimated_profit'].min():.2f}"
         
         if random_available:
             service_time_stats += f" / Random: {random_df['service_time'].min():.2f}"
@@ -134,7 +134,7 @@ plt.figure(figsize=(15, 5))
 # Graph 1: Mean Service Time
 plt.subplot(1, 2, 1)
 plt.plot(number_of_orders, mean_service_time_greedy, marker='s', color='black', label='Greedy Assignments')
-plt.plot(number_of_orders, mean_service_time_optimal, marker='o', color='red', label='Optimal Assignments')
+plt.plot(number_of_orders, mean_service_time_optimal, marker='o', color='red', label='WWO Assignments')
 
 # Only plot Random if there are valid data points
 if valid_mean_service_time_random:
@@ -153,7 +153,7 @@ plt.yticks(fontsize=14)
 # Graph 2: Mean Estimated Profit
 plt.subplot(1, 2, 2)
 plt.plot(number_of_orders, mean_estimated_profit_greedy, marker='s', color='black', label='Greedy Assignments')
-plt.plot(number_of_orders, mean_estimated_profit_optimal, marker='o', color='red', label='Optimal Assignments')
+plt.plot(number_of_orders, mean_estimated_profit_optimal, marker='o', color='red', label='WWO Assignments')
 
 # Only plot Random if there are valid data points
 if valid_mean_estimated_profit_random:
